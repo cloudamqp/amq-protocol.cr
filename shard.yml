@@ -1,0 +1,10 @@
+name: amq-protocol
+version: 0.1.0
+
+authors:
+  - Carl Hörberg <carl@cloudamqp.com>
+
+description: |
+  AMQP 0-9-1 protocol library
+
+license: MIT
