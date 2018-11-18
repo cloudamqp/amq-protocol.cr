@@ -17,7 +17,7 @@ module AMQ
         io.write_byte 206_u8
       end
 
-      def self.from_io(io, format = IO::BytesFormat::NetworkEndian, &block : Frame -> _)
+      def self.from_io(io, format = IO::ByteFormat::NetworkEndian, &block : Frame -> _)
         type = io.read_byte || raise(IO::EOFError.new)
         channel = UInt16.from_io(io, format)
         size = UInt32.from_io(io, format)
