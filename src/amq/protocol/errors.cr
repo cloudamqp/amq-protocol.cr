@@ -14,7 +14,7 @@ module AMQ
           super("Method id #{@method_id} not implemented in class #{@class_id} (Channel #{@channel})")
         end
 
-        def initialize(frame : Method)
+        def initialize(frame : Frame::Method)
           @channel = frame.channel
           @class_id = frame.class_id
           @method_id = frame.method_id
