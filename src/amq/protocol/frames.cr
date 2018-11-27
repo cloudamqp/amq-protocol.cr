@@ -1183,16 +1183,6 @@ module AMQ
             end
           end
 
-          def to_io(io, format)
-            wrap(io, 1 + @consumer_tag.bytesize + 8 + 1 + 1 + @exchange.bytesize + 1 + @routing_key.bytesize, format) do
-              io.write_bytes ShortString.new(@consumer_tag), format
-              io.write_bytes @delivery_tag, format
-              io.write_byte @redelivered ? 1_u8 : 0_u8
-              io.write_bytes ShortString.new(@exchange), format
-              io.write_bytes ShortString.new(@routing_key), format
-            end
-          end
-
           def self.from_io(channel, io, format)
             consumer_tag = ShortString.from_io(io, format)
             delivery_tag = UInt64.from_io(io, format)
@@ -1254,16 +1244,6 @@ module AMQ
             end
           end
 
-          def to_io(io, format)
-            wrap(io, 8 + 1 + 1 + @exchange.bytesize + 1 + @routing_key.bytesize + 4, format) do
-              io.write_bytes @delivery_tag, format
-              io.write_byte @redelivered ? 1_u8 : 0_u8
-              io.write_bytes ShortString.new(@exchange), format
-              io.write_bytes ShortString.new(@routing_key), format
-              io.write_bytes @message_count, format
-            end
-          end
-
           def self.from_io(channel, io, format)
             raise Error::NotImplemented.new(channel, CLASS_ID, METHOD_ID)
           end
@@ -1278,12 +1258,6 @@ module AMQ
 
           def initialize(channel, @reserved1 = 0_u16)
             super(channel)
-          end
-
-          def to_io(io, format)
-            wrap(io, 2, format) do
-              io.write_bytes @reserved1, format
-            end
           end
 
           def to_io(io, format)
@@ -1508,15 +1482,6 @@ module AMQ
           def initialize(channel, @reply_code : UInt16, @reply_text : String,
                          @exchange_name : String, @routing_key : String)
             super(channel)
-          end
-
-          def to_io(io, format)
-            wrap(io, 2 + 1 + @reply_text.bytesize + 1 + @exchange_name.bytesize + 1 + @routing_key.bytesize, format) do
-              io.write_bytes(@reply_code, format)
-              io.write_bytes ShortString.new(@reply_text), format
-              io.write_bytes ShortString.new(@exchange_name), format
-              io.write_bytes ShortString.new(@routing_key), format
-            end
           end
 
           def to_io(io, format)
