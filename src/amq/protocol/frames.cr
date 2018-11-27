@@ -1229,6 +1229,8 @@ module AMQ
             METHOD_ID
           end
 
+          getter delivery_tag, redelivered, exchange, routing_key, message_count
+
           def initialize(channel, @delivery_tag : UInt64, @redelivered : Bool,
                          @exchange : String, @routing_key : String, @message_count : UInt32)
             super(channel)
