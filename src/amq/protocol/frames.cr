@@ -1,18 +1,18 @@
 module AMQ
   module Protocol
     abstract struct Frame
-      getter channel
+      getter channel, bytesize
 
-      def initialize(@channel : UInt16)
+      def initialize(@channel : UInt16, @bytesize : UInt32)
       end
 
       abstract def to_io(io, format)
       abstract def type : UInt8
 
-      def wrap(io, body_size : Number, format : IO::ByteFormat)
+      def wrap(io, format : IO::ByteFormat)
         io.write_byte type
         io.write_bytes @channel, format
-        io.write_bytes body_size.to_u32, format
+        io.write_bytes @bytesize, format
         yield
         io.write_byte 206_u8
       end
@@ -57,11 +57,12 @@ module AMQ
 
         def initialize(channel : UInt16, @class_id : UInt16, @weight : UInt16,
                        @body_size : UInt64, @properties : Properties)
-          super(channel)
+          bytesize = sizeof(UInt16) + sizeof(UInt16) + sizeof(UInt64) + @properties.bytesize
+          super(channel, bytesize)
         end
 
         def to_io(io : IO, format : IO::ByteFormat)
-          wrap(io, sizeof(UInt16) + sizeof(UInt16) + sizeof(UInt64) + @properties.bytesize, format) do
+          wrap(io, format) do
             io.write_bytes @class_id, format
             io.write_bytes @weight, format
             io.write_bytes @body_size, format
