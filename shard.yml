@@ -1,8 +1,9 @@
 name: amq-protocol
-version: 0.1.5
+version: 0.1.6
 
 authors:
   - Carl Hörberg <carl@cloudamqp.com>
+  - Anders Bälter <anders@cloudamqp.com>
 
 description: |
   AMQP 0-9-1 protocol library
