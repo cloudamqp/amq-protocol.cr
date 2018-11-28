@@ -128,7 +128,7 @@ module AMQ
           TYPE
         end
 
-        def initialize(channel : UInt16, bytesize : UInt32)
+        def initialize(channel : UInt16, bytesize = 0_u32)
           super(channel, bytesize + 2 * sizeof(UInt16))
         end
 
@@ -167,7 +167,7 @@ module AMQ
           CLASS_ID
         end
 
-        def initialize(bytesize : UInt32)
+        def initialize(bytesize = 0_u32)
           super(0_u16, bytesize)
         end
 
@@ -415,10 +415,6 @@ module AMQ
         struct CloseOk < Connection
           METHOD_ID = 51_u16
 
-          def initialize
-            super(0_u32)
-          end
-
           def method_id
             METHOD_ID
           end
@@ -535,7 +531,7 @@ module AMQ
             reply_text = ShortString.from_io(io, format)
             classid = UInt16.from_io(io, format)
             methodid = UInt16.from_io(io, format)
-            Close.new channel, reply_code, reply_text, classid, methodid, bytesize
+            self.new channel, reply_code, reply_text, classid, methodid, bytesize
           end
         end
 
@@ -551,7 +547,7 @@ module AMQ
           end
 
           def self.from_io(channel, bytesize, io, format)
-            self.new channel, bytesize
+            self.new channel
           end
         end
       end
@@ -640,7 +636,7 @@ module AMQ
           end
 
           def self.from_io(channel, bytesize, io, format)
-            self.new(channel, bytesize)
+            self.new(channel)
           end
         end
 
@@ -692,7 +688,7 @@ module AMQ
           end
 
           def self.from_io(channel, bytesize, io, format)
-            self.new(channel, bytesize)
+            self.new(channel)
           end
         end
 
@@ -749,7 +745,7 @@ module AMQ
           end
 
           def self.from_io(channel, bytesize, io, format)
-            self.new(channel, bytesize)
+            self.new(channel)
           end
         end
 
@@ -1078,7 +1074,7 @@ module AMQ
           end
 
           def self.from_io(channel, bytesize, io, format)
-            self.new(channel, bytesize)
+            self.new(channel)
           end
         end
 
@@ -1457,7 +1453,7 @@ module AMQ
           end
 
           def self.from_io(channel, bytesize, io, format)
-            self.new(channel, 0_u32)
+            self.new(channel)
           end
         end
 
@@ -1659,7 +1655,7 @@ module AMQ
           end
 
           def self.from_io(channel, bytesize, io, format)
-            self.new(channel, 0_u32)
+            self.new(channel)
           end
         end
       end
@@ -1717,7 +1713,7 @@ module AMQ
           end
 
           def self.from_io(channel, bytesize, io, format)
-            self.new(channel, 0_u32)
+            self.new(channel)
           end
         end
       end
