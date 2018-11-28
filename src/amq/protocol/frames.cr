@@ -30,19 +30,19 @@ module AMQ
           else
             raise Error::NotImplemented.new channel, 0_u16, 0_u16
           end
-        yield frame
-      rescue ex : IO::Error | Errno
-        raise ex
-      rescue ex
-        raise Error::FrameDecode.new(ex.message, ex)
-      ensure
+
         begin
-          if !io.closed?
-            if (frame_end = io.read_byte) && frame_end != 206_u8
-              raise Error::InvalidFrameEnd.new("#{frame.class}-end was #{frame_end.to_s}, expected 206")
-            end
+          result = yield frame
+          if (frame_end = io.read_byte) && frame_end != 206_u8
+            raise Error::InvalidFrameEnd.new("#{frame.class}-end was #{frame_end.to_s}, expected 206")
           end
-        rescue ex : IO::Error | Errno
+          result
+        rescue ex
+          begin
+            io.read_byte
+          rescue IO::Error | Errno
+          end
+          raise ex
         end
       end
 
