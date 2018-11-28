@@ -277,7 +277,7 @@ module AMQ
           end
 
           def initialize(@channel_max = 0_u16, @frame_max = 131072_u32, @heartbeat = 0_u16)
-            super(8u32)
+            super(8_u32)
           end
 
           def to_io(io, format)
@@ -305,7 +305,7 @@ module AMQ
           end
 
           def initialize(@channel_max = 0_u16, @frame_max = 131072_u32, @heartbeat = 60_u16)
-            super(8u32)
+            super(8_u32)
           end
 
           def to_io(io, format)
