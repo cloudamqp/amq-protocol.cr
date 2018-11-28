@@ -415,6 +415,10 @@ module AMQ
         struct CloseOk < Connection
           METHOD_ID = 51_u16
 
+          def initialize
+            super(0_u32)
+          end
+
           def method_id
             METHOD_ID
           end
@@ -424,7 +428,7 @@ module AMQ
           end
 
           def self.from_io(io, bytesize, format)
-            self.new(bytesize)
+            self.new
           end
         end
       end
