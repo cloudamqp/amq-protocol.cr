@@ -1301,7 +1301,12 @@ module AMQ
           end
 
           def self.from_io(channel, bytesize, io, format)
-            raise Error::NotImplemented.new(channel, CLASS_ID, METHOD_ID)
+            delivery_tag = UInt64.from_io(io, format)
+            redelivered = (io.read_byte || raise IO::EOFError.new) == 1_u8
+            exchange = ShortString.from_io(io, format)
+            routing_key = ShortString.from_io(io, format)
+            message_count = UInt32.from_io(io, format)
+            self.new channel, delivery_tag, redelivered, exchange, routing_key, message_count, bytesize
           end
         end
 
