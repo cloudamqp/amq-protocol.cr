@@ -1021,7 +1021,8 @@ module AMQ
           end
 
           def self.from_io(channel, bytesize, io, format)
-            raise Error::NotImplemented.new(channel, CLASS_ID, METHOD_ID)
+            message_count = UInt32.from_io(io, format)
+            self.new channel, message_count
           end
         end
 
@@ -1128,7 +1129,8 @@ module AMQ
           end
 
           def self.from_io(channel, bytesize, io, format)
-            raise Error::NotImplemented.new(channel, CLASS_ID, METHOD_ID)
+            message_count = UInt32.from_io(io, format)
+            self.new channel, message_count
           end
         end
       end
