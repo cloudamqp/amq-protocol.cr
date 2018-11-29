@@ -1010,6 +1010,8 @@ module AMQ
             METHOD_ID
           end
 
+          getter message_count
+
           def initialize(channel : UInt16, @message_count : UInt32)
             super(channel, 4_u32)
           end
