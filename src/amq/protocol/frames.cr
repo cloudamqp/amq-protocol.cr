@@ -1547,12 +1547,12 @@ module AMQ
             METHOD_ID
           end
 
-          getter reply_code, reply_text, exchange_name, routing_key
+          getter reply_code, reply_text, exchange, routing_key
 
           def initialize(channel, @reply_code : UInt16, @reply_text : String,
-                         @exchange_name : String, @routing_key : String,
+                         @exchange, @routing_key : String,
                          bytesize = nil)
-            bytesize ||= 2 + 1 + @reply_text.bytesize + 1 + @exchange_name.bytesize + 1 +
+            bytesize ||= 2 + 1 + @reply_text.bytesize + 1 + @exchange.bytesize + 1 +
                          @routing_key.bytesize
             super(channel, bytesize.to_u32)
           end
@@ -1561,7 +1561,7 @@ module AMQ
             wrap(io, format) do
               io.write_bytes(@reply_code, format)
               io.write_bytes ShortString.new(@reply_text), format
-              io.write_bytes ShortString.new(@exchange_name), format
+              io.write_bytes ShortString.new(@exchange), format
               io.write_bytes ShortString.new(@routing_key), format
             end
           end
@@ -1569,9 +1569,9 @@ module AMQ
           def self.from_io(channel, bytesize, io, format)
             reply_code = UInt16.from_io(io, format)
             reply_text = ShortString.from_io(io, format)
-            exchange_name = ShortString.from_io(io, format)
+            exchange = ShortString.from_io(io, format)
             routing_key = ShortString.from_io(io, format)
-            self.new(channel, reply_code, reply_text, exchange_name, routing_key, bytesize)
+            self.new(channel, reply_code, reply_text, exchange, routing_key, bytesize)
           end
         end
 
