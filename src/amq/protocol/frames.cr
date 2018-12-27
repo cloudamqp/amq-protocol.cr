@@ -1550,7 +1550,7 @@ module AMQ
           getter reply_code, reply_text, exchange, routing_key
 
           def initialize(channel, @reply_code : UInt16, @reply_text : String,
-                         @exchange, @routing_key : String,
+                         @exchange : String, @routing_key : String,
                          bytesize = nil)
             bytesize ||= 2 + 1 + @reply_text.bytesize + 1 + @exchange.bytesize + 1 +
                          @routing_key.bytesize
