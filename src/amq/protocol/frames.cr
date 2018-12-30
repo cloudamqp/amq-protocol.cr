@@ -588,7 +588,7 @@ module AMQ
                          @exchange_type : String, @passive : Bool, @durable : Bool, @auto_delete : Bool,
                          @internal : Bool, @no_wait : Bool, @arguments : Hash(String, Field),
                          bytesize = nil)
-            bytesize ||= 2 + 2 + 1 + @exchange_name.bytesize + 1 + @exchange_type.bytesize + 1 + Table.new(@arguments).bytesize
+            bytesize ||= 2 + 1 + @exchange_name.bytesize + 1 + @exchange_type.bytesize + 1 + Table.new(@arguments).bytesize
             super(channel, bytesize.to_u32)
           end
 
