@@ -215,9 +215,11 @@ module AMQ
                              "per_consumer_qos"             => true,
                              "authentication_failure_close" => true,
                              "consumer_cancel_notify"       => true,
+                             "connection.blocked"           => false,
                            } of String => Field,
                          } of String => Field,
-                         @mechanisms = "AMQPLAIN PLAIN", @locales = "en_US",
+                         @mechanisms = "AMQPLAIN PLAIN",
+                         @locales = "en_US",
                          bytesize = nil)
             bytesize ||= 1 + 1 + Table.new(@server_properties).bytesize + 4 +
                          @mechanisms.bytesize + 4 + @locales.bytesize
