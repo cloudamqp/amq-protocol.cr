@@ -215,7 +215,7 @@ module AMQ
                              "per_consumer_qos"             => true,
                              "authentication_failure_close" => true,
                              "consumer_cancel_notify"       => true,
-                             "connection.blocked"           => false,
+                             "connection.blocked"           => true,
                            } of String => Field,
                          } of String => Field,
                          @mechanisms = "AMQPLAIN PLAIN",
