@@ -53,23 +53,23 @@ module AMQ
 
       def self.from_io(io, format)
         flags = UInt16.from_io io, format
-        content_type = ShortString.from_io(io, format)     if flags & FLAG_CONTENT_TYPE > 0
+        content_type = ShortString.from_io(io, format) if flags & FLAG_CONTENT_TYPE > 0
         content_encoding = ShortString.from_io(io, format) if flags & FLAG_CONTENT_ENCODING > 0
-        headers = Table.from_io(io, format)                if flags & FLAG_HEADERS > 0
-        delivery_mode = io.read_byte                       if flags & FLAG_DELIVERY_MODE > 0
-        priority = io.read_byte                            if flags & FLAG_PRIORITY > 0
-        correlation_id = ShortString.from_io(io, format)   if flags & FLAG_CORRELATION_ID > 0
-        reply_to = ShortString.from_io(io, format)         if flags & FLAG_REPLY_TO > 0
-        expiration = ShortString.from_io(io, format)       if flags & FLAG_EXPIRATION > 0
-        message_id = ShortString.from_io(io, format)       if flags & FLAG_MESSAGE_ID > 0
-        timestamp = Time.unix(Int64.from_io(io, format))  if flags & FLAG_TIMESTAMP > 0
-        type = ShortString.from_io(io, format)             if flags & FLAG_TYPE > 0
-        user_id = ShortString.from_io(io, format)          if flags & FLAG_USER_ID > 0
-        app_id = ShortString.from_io(io, format)           if flags & FLAG_APP_ID > 0
-        reserved1 = ShortString.from_io(io, format)        if flags & FLAG_RESERVED1 > 0
+        headers = Table.from_io(io, format) if flags & FLAG_HEADERS > 0
+        delivery_mode = io.read_byte if flags & FLAG_DELIVERY_MODE > 0
+        priority = io.read_byte if flags & FLAG_PRIORITY > 0
+        correlation_id = ShortString.from_io(io, format) if flags & FLAG_CORRELATION_ID > 0
+        reply_to = ShortString.from_io(io, format) if flags & FLAG_REPLY_TO > 0
+        expiration = ShortString.from_io(io, format) if flags & FLAG_EXPIRATION > 0
+        message_id = ShortString.from_io(io, format) if flags & FLAG_MESSAGE_ID > 0
+        timestamp = Time.unix(Int64.from_io(io, format)) if flags & FLAG_TIMESTAMP > 0
+        type = ShortString.from_io(io, format) if flags & FLAG_TYPE > 0
+        user_id = ShortString.from_io(io, format) if flags & FLAG_USER_ID > 0
+        app_id = ShortString.from_io(io, format) if flags & FLAG_APP_ID > 0
+        reserved1 = ShortString.from_io(io, format) if flags & FLAG_RESERVED1 > 0
         Properties.new(content_type, content_encoding, headers, delivery_mode,
-                       priority, correlation_id, reply_to, expiration,
-                       message_id, timestamp, type, user_id, app_id, reserved1)
+          priority, correlation_id, reply_to, expiration,
+          message_id, timestamp, type, user_id, app_id, reserved1)
       end
 
       def self.from_json(data : JSON::Any)
@@ -77,7 +77,7 @@ module AMQ
         p.content_type = data["content_type"]?.try(&.as_s)
         p.content_encoding = data["content_encoding"]?.try(&.as_s)
         p.headers = data["headers"]?.try(&.as_h?)
-          .try { |hdrs| AMQ::Protocol.cast_to_field(hdrs).as(Hash(String, Field)) }
+          .try { |hdrs| AMQ::Protocol::Properties.cast_to_field(hdrs).as(Hash(String, Field)) }
         p.delivery_mode = data["delivery_mode"]?.try(&.as_i?.try(&.to_u8))
         p.priority = data["priority"]?.try(&.as_i?.try(&.to_u8))
         p.correlation_id = data["correlation_id"]?.try(&.as_s)
@@ -92,95 +92,118 @@ module AMQ
         p
       end
 
+      # https://github.com/crystal-lang/crystal/issues/4885#issuecomment-325109328
+      def self.cast_to_field(x : Array) : Field
+        x.map { |e| cast_to_field(e).as(Field) }.as(Field)
+      end
+
+      def self.cast_to_field(x : Hash) : Field
+        h = Hash(String, Field).new
+        x.each do |(k, v)|
+          h[k] = cast_to_field(v).as(Field)
+        end
+        h.as(Field)
+      end
+
+      def self.cast_to_field(x : JSON::Any) : Field
+        if a = x.as_a?
+          cast_to_field(a)
+        elsif h = x.as_h?
+          cast_to_field(h)
+        else
+          x.raw.as(Field)
+        end
+      end
+
       def to_json(json : JSON::Builder)
         {
-          "content_type" => @content_type,
+          "content_type"     => @content_type,
           "content_encoding" => @content_encoding,
-          "headers" => @headers,
-          "delivery_mode" => @delivery_mode,
-          "priority" => @priority,
-          "correlation_id" => @correlation_id,
-          "reply_to" => @reply_to,
-          "expiration" => @expiration,
-          "message_id" => @message_id,
-          "timestamp" => @timestamp,
-          "type" => @type,
-          "user_id" => @user_id,
-          "app_id" => @app_id,
-          "reserved" => @reserved1,
+          "headers"          => @headers,
+          "delivery_mode"    => @delivery_mode,
+          "priority"         => @priority,
+          "correlation_id"   => @correlation_id,
+          "reply_to"         => @reply_to,
+          "expiration"       => @expiration,
+          "message_id"       => @message_id,
+          "timestamp"        => @timestamp,
+          "type"             => @type,
+          "user_id"          => @user_id,
+          "app_id"           => @app_id,
+          "reserved"         => @reserved1,
         }.compact.to_json(json)
       end
 
       def to_io(io, format)
         flags = 0_u16
-        flags = flags | FLAG_CONTENT_TYPE     if @content_type
+        flags = flags | FLAG_CONTENT_TYPE if @content_type
         flags = flags | FLAG_CONTENT_ENCODING if @content_encoding
-        flags = flags | FLAG_HEADERS          if @headers
-        flags = flags | FLAG_DELIVERY_MODE    if @delivery_mode
-        flags = flags | FLAG_PRIORITY         if @priority
-        flags = flags | FLAG_CORRELATION_ID   if @correlation_id
-        flags = flags | FLAG_REPLY_TO         if @reply_to
-        flags = flags | FLAG_EXPIRATION       if @expiration
-        flags = flags | FLAG_MESSAGE_ID       if @message_id
-        flags = flags | FLAG_TIMESTAMP        if @timestamp
-        flags = flags | FLAG_TYPE             if @type
-        flags = flags | FLAG_USER_ID          if @user_id
-        flags = flags | FLAG_APP_ID           if @app_id
-        flags = flags | FLAG_RESERVED1        if @reserved1
+        flags = flags | FLAG_HEADERS if @headers
+        flags = flags | FLAG_DELIVERY_MODE if @delivery_mode
+        flags = flags | FLAG_PRIORITY if @priority
+        flags = flags | FLAG_CORRELATION_ID if @correlation_id
+        flags = flags | FLAG_REPLY_TO if @reply_to
+        flags = flags | FLAG_EXPIRATION if @expiration
+        flags = flags | FLAG_MESSAGE_ID if @message_id
+        flags = flags | FLAG_TIMESTAMP if @timestamp
+        flags = flags | FLAG_TYPE if @type
+        flags = flags | FLAG_USER_ID if @user_id
+        flags = flags | FLAG_APP_ID if @app_id
+        flags = flags | FLAG_RESERVED1 if @reserved1
 
         io.write_bytes(flags, format)
 
-        io.write_bytes ShortString.new(@content_type.not_nil!), format     if @content_type
+        io.write_bytes ShortString.new(@content_type.not_nil!), format if @content_type
         io.write_bytes ShortString.new(@content_encoding.not_nil!), format if @content_encoding
-        io.write_bytes Table.new(@headers.not_nil!), format                if @headers
-        io.write_byte @delivery_mode.not_nil!                              if @delivery_mode
-        io.write_byte @priority.not_nil!                                   if @priority
-        io.write_bytes ShortString.new(@correlation_id.not_nil!), format   if @correlation_id
-        io.write_bytes ShortString.new(@reply_to.not_nil!), format         if @reply_to
-        io.write_bytes ShortString.new(@expiration.not_nil!), format       if @expiration
-        io.write_bytes ShortString.new(@message_id.not_nil!), format       if @message_id
-        io.write_bytes @timestamp.not_nil!.to_unix.to_i64, format          if @timestamp
-        io.write_bytes ShortString.new(@type.not_nil!), format             if @type
-        io.write_bytes ShortString.new(@user_id.not_nil!), format          if @user_id
-        io.write_bytes ShortString.new(@app_id.not_nil!), format           if @app_id
-        io.write_bytes ShortString.new(@reserved1.not_nil!), format        if @reserved1
+        io.write_bytes Table.new(@headers.not_nil!), format if @headers
+        io.write_byte @delivery_mode.not_nil! if @delivery_mode
+        io.write_byte @priority.not_nil! if @priority
+        io.write_bytes ShortString.new(@correlation_id.not_nil!), format if @correlation_id
+        io.write_bytes ShortString.new(@reply_to.not_nil!), format if @reply_to
+        io.write_bytes ShortString.new(@expiration.not_nil!), format if @expiration
+        io.write_bytes ShortString.new(@message_id.not_nil!), format if @message_id
+        io.write_bytes @timestamp.not_nil!.to_unix.to_i64, format if @timestamp
+        io.write_bytes ShortString.new(@type.not_nil!), format if @type
+        io.write_bytes ShortString.new(@user_id.not_nil!), format if @user_id
+        io.write_bytes ShortString.new(@app_id.not_nil!), format if @app_id
+        io.write_bytes ShortString.new(@reserved1.not_nil!), format if @reserved1
       end
 
       def bytesize
         size = 2
-        size += 1 + @content_type.not_nil!.bytesize     if @content_type
+        size += 1 + @content_type.not_nil!.bytesize if @content_type
         size += 1 + @content_encoding.not_nil!.bytesize if @content_encoding
-        size += Table.new(@headers.not_nil!).bytesize   if @headers
-        size += 1                                       if @delivery_mode
-        size += 1                                       if @priority
-        size += 1 + @correlation_id.not_nil!.bytesize   if @correlation_id
-        size += 1 + @reply_to.not_nil!.bytesize         if @reply_to
-        size += 1 + @expiration.not_nil!.bytesize       if @expiration
-        size += 1 + @message_id.not_nil!.bytesize       if @message_id
-        size += sizeof(Int64)                           if @timestamp
-        size += 1 + @type.not_nil!.bytesize             if @type
-        size += 1 + @user_id.not_nil!.bytesize          if @user_id
-        size += 1 + @app_id.not_nil!.bytesize           if @app_id
-        size += 1 + @reserved1.not_nil!.bytesize        if @reserved1
+        size += Table.new(@headers.not_nil!).bytesize if @headers
+        size += 1 if @delivery_mode
+        size += 1 if @priority
+        size += 1 + @correlation_id.not_nil!.bytesize if @correlation_id
+        size += 1 + @reply_to.not_nil!.bytesize if @reply_to
+        size += 1 + @expiration.not_nil!.bytesize if @expiration
+        size += 1 + @message_id.not_nil!.bytesize if @message_id
+        size += sizeof(Int64) if @timestamp
+        size += 1 + @type.not_nil!.bytesize if @type
+        size += 1 + @user_id.not_nil!.bytesize if @user_id
+        size += 1 + @app_id.not_nil!.bytesize if @app_id
+        size += 1 + @reserved1.not_nil!.bytesize if @reserved1
         size
       end
 
       def self.seek_past(io)
         flags = io.read_uint16
-        io.seek(io.read_byte.to_i, ::IO::Seek::Current)     if flags & FLAG_CONTENT_TYPE > 0
-        io.seek(io.read_byte.to_i, ::IO::Seek::Current)     if flags & FLAG_CONTENT_ENCODING > 0
-        io.seek(io.read_uint64.to_i, ::IO::Seek::Current)   if flags & FLAG_HEADERS > 0
-        io.seek(1, ::IO::Seek::Current)                     if flags & FLAG_DELIVERY_MODE > 0
-        io.seek(1, ::IO::Seek::Current)                     if flags & FLAG_PRIORITY > 0
-        io.seek(io.read_byte.to_i, ::IO::Seek::Current)     if flags & FLAG_CORRELATION_ID > 0
-        io.seek(io.read_byte.to_i, ::IO::Seek::Current)     if flags & FLAG_REPLY_TO > 0
-        io.seek(io.read_byte.to_i, ::IO::Seek::Current)     if flags & FLAG_EXPIRATION > 0
-        io.seek(io.read_byte.to_i, ::IO::Seek::Current)     if flags & FLAG_MESSAGE_ID > 0
-        io.seek(4, ::IO::Seek::Current)                     if flags & FLAG_TIMESTAMP > 0
-        io.seek(io.read_byte.to_i, ::IO::Seek::Current)     if flags & FLAG_TYPE > 0
-        io.seek(io.read_byte.to_i, ::IO::Seek::Current)     if flags & FLAG_USER_ID > 0
-        io.seek(io.read_byte.to_i, ::IO::Seek::Current)     if flags & FLAG_APP_ID > 0
-        io.seek(io.read_byte.to_i, ::IO::Seek::Current)     if flags & FLAG_RESERVED1 > 0
+        io.seek(io.read_byte.to_i, ::IO::Seek::Current) if flags & FLAG_CONTENT_TYPE > 0
+        io.seek(io.read_byte.to_i, ::IO::Seek::Current) if flags & FLAG_CONTENT_ENCODING > 0
+        io.seek(io.read_uint64.to_i, ::IO::Seek::Current) if flags & FLAG_HEADERS > 0
+        io.seek(1, ::IO::Seek::Current) if flags & FLAG_DELIVERY_MODE > 0
+        io.seek(1, ::IO::Seek::Current) if flags & FLAG_PRIORITY > 0
+        io.seek(io.read_byte.to_i, ::IO::Seek::Current) if flags & FLAG_CORRELATION_ID > 0
+        io.seek(io.read_byte.to_i, ::IO::Seek::Current) if flags & FLAG_REPLY_TO > 0
+        io.seek(io.read_byte.to_i, ::IO::Seek::Current) if flags & FLAG_EXPIRATION > 0
+        io.seek(io.read_byte.to_i, ::IO::Seek::Current) if flags & FLAG_MESSAGE_ID > 0
+        io.seek(4, ::IO::Seek::Current) if flags & FLAG_TIMESTAMP > 0
+        io.seek(io.read_byte.to_i, ::IO::Seek::Current) if flags & FLAG_TYPE > 0
+        io.seek(io.read_byte.to_i, ::IO::Seek::Current) if flags & FLAG_USER_ID > 0
+        io.seek(io.read_byte.to_i, ::IO::Seek::Current) if flags & FLAG_APP_ID > 0
+        io.seek(io.read_byte.to_i, ::IO::Seek::Current) if flags & FLAG_RESERVED1 > 0
       end
     end
   end
