@@ -154,16 +154,18 @@ module AMQ
         when 'T' then Time.unix(Int64.from_io(io, format))
         when 'F' then Table.from_io(io, format)
         when 'V' then nil
-        else raise "Unknown field type '#{type}' at #{io.pos}"
+        else raise "Unknown field type '#{type}'"
         end
       end
 
       private def self.read_array(io, format)
         size = UInt32.from_io(io, format)
-        end_pos = io.pos + size
+        pos = 0_u32
         a = Array(Field).new
-        while io.pos < end_pos
-          a << read_field(io, format)
+        while pos < size
+          val = read_field(io, format)
+          pos += field_bytesize(val)
+          a << val
         end
         a
       end
