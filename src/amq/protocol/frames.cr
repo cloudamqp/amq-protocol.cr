@@ -96,7 +96,7 @@ module AMQ
           wrap(io, format) do
             copied = IO.copy(@body, io, @body_size)
             if copied != @body_size
-              raise Error::FrameEncode.new("Could not write the full body")
+              raise Error::FrameEncode.new("Only #{copied} bytes of #{@body_size} of the body could be copied")
             end
           end
         end
