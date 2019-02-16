@@ -444,8 +444,8 @@ module AMQ
           case method_id
           when 10_u16 then Open.from_io(channel, bytesize, io, format)
           when 11_u16 then OpenOk.from_io(channel, bytesize, io, format)
-            # when 20_u16 then Flow.from_io(channel, bytesize, io, format)
-            # when 21_u16 then FlowOk.from_io(channel, bytesize, io, format)
+          when 20_u16 then Flow.from_io(channel, bytesize, io, format)
+          when 21_u16 then FlowOk.from_io(channel, bytesize, io, format)
           when 40_u16 then Close.from_io(channel, bytesize, io, format)
           when 41_u16 then CloseOk.from_io(channel, bytesize, io, format)
           else             raise Error::NotImplemented.new(channel, CLASS_ID, method_id)
@@ -501,6 +501,56 @@ module AMQ
           def self.from_io(channel, bytesize, io, format)
             reserved1 = LongString.from_io(io, format)
             OpenOk.new channel, reserved1, bytesize
+          end
+        end
+
+        struct Flow < Channel
+          METHOD_ID = 20_u16
+
+          def method_id
+            METHOD_ID
+          end
+
+          getter active
+
+          def initialize(channel : UInt16, @active : Bool)
+            super(channel, 1_u32)
+          end
+
+          def to_io(io, format)
+            wrap(io, format) do
+              io.write_byte @active ? 1_u8 : 0_u8
+            end
+          end
+
+          def self.from_io(channel, bytesize, io, format)
+            active = (io.read_byte || raise IO::EOFError.new) > 0
+            Flow.new channel, active
+          end
+        end
+
+        struct FlowOk < Channel
+          METHOD_ID = 21_u16
+
+          def method_id
+            METHOD_ID
+          end
+
+          getter active
+
+          def initialize(channel : UInt16, @active : Bool)
+            super(channel, 1_u32)
+          end
+
+          def to_io(io, format)
+            wrap(io, format) do
+              io.write_byte @active ? 1_u8 : 0_u8
+            end
+          end
+
+          def self.from_io(channel, bytesize, io, format)
+            active = (io.read_byte || raise IO::EOFError.new) > 0
+            FlowOk.new channel, active
           end
         end
 
