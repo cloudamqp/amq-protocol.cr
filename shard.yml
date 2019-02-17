@@ -1,5 +1,5 @@
 name: amq-protocol
-version: 0.1.17
+version: 0.2.0
 
 authors:
   - Carl Hörberg <carl@cloudamqp.com>
