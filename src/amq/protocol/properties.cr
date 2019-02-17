@@ -1,6 +1,6 @@
 module AMQ
   module Protocol
-    class Properties
+    struct Properties
       FLAG_CONTENT_TYPE     = 0x8000_u16
       FLAG_CONTENT_ENCODING = 0x4000_u16
       FLAG_HEADERS          = 0x2000_u16
