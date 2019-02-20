@@ -1398,7 +1398,7 @@ module AMQ
             METHOD_ID
           end
 
-          getter :delivery_tag, :multiple
+          getter delivery_tag, multiple
 
           def initialize(channel, @delivery_tag : UInt64, @multiple : Bool)
             super(channel, 9_u32)
@@ -1425,7 +1425,7 @@ module AMQ
             METHOD_ID
           end
 
-          getter :delivery_tag, :requeue
+          getter delivery_tag, requeue
 
           def initialize(channel, @delivery_tag : UInt64, @requeue : Bool)
             super(channel, 9_u32)
@@ -1452,17 +1452,19 @@ module AMQ
             METHOD_ID
           end
 
-          getter :delivery_tag, :multiple, :requeue
+          getter delivery_tag, multiple, requeue
 
           def initialize(channel, @delivery_tag : UInt64, @multiple : Bool, @requeue : Bool)
-            super(channel, 10_u32)
+            super(channel, 9_u32)
           end
 
           def to_io(io, format)
             wrap(io, format) do
               io.write_bytes(@delivery_tag, format)
-              io.write_byte @multiple ? 1_u8 : 0_u8
-              io.write_byte @requeue ? 1_u8 : 0_u8
+              bits = 0_u8
+              bits = bits | (1 << 0) if @multiple
+              bits = bits | (1 << 1) if @requeue
+              io.write_byte(bits)
             end
           end
 
