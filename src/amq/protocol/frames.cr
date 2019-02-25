@@ -183,6 +183,8 @@ module AMQ
           when 41_u16 then OpenOk.from_io(io, bytesize, format)
           when 50_u16 then Close.from_io(io, bytesize, format)
           when 51_u16 then CloseOk.from_io(io, bytesize, format)
+          when 60_u16 then Blocked.from_io(io, bytesize, format)
+          when 61_u16 then Unblocked.from_io(io, bytesize, format)
           else             raise Error::NotImplemented.new(channel, CLASS_ID, method_id)
           end
         end
@@ -416,6 +418,48 @@ module AMQ
 
         struct CloseOk < Connection
           METHOD_ID = 51_u16
+
+          def method_id
+            METHOD_ID
+          end
+
+          def to_io(io, format)
+            wrap(io, format) { }
+          end
+
+          def self.from_io(io, bytesize, format)
+            self.new
+          end
+        end
+
+        struct Blocked < Connection
+          METHOD_ID = 60_u16
+
+          def method_id
+            METHOD_ID
+          end
+
+          getter reason
+
+          def initialize(@reason : String, bytesize = nil)
+            bytesize ||= 1 + @reason.bytesize
+            super(bytesize)
+          end
+
+          def to_io(io, format)
+            wrap(io, format) do
+              io.write_bytes ShortString.new(@reason), format
+            end
+          end
+
+          def self.from_io(io, bytesize, format)
+            reason = ShortString.from_io(io, format)
+            self.new(reason, bytesize)
+          end
+        end
+
+        struct Unblocked < Connection
+          METHOD_ID = 61_u16
 
           def method_id
             METHOD_ID
