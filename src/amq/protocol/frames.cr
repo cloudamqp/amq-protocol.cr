@@ -443,7 +443,7 @@ module AMQ
 
           def initialize(@reason : String, bytesize = nil)
             bytesize ||= 1 + @reason.bytesize
-            super(bytesize)
+            super(bytesize.to_u32)
           end
 
           def to_io(io, format)
