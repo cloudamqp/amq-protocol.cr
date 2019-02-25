@@ -56,7 +56,7 @@ module AMQ
         getter body_size, properties
 
         def initialize(channel : UInt16, @class_id : UInt16, @weight : UInt16, @body_size : UInt64,
-                       @properties : Properties, bytesize = nil)
+                       @properties : Properties, bytesize : UInt32? = nil)
           bytesize ||= sizeof(UInt16) + sizeof(UInt16) + sizeof(UInt64) + @properties.bytesize
           super(channel, bytesize.to_u32)
         end
@@ -128,7 +128,7 @@ module AMQ
           TYPE
         end
 
-        def initialize(channel : UInt16, bytesize = 0_u32)
+        def initialize(channel : UInt16, bytesize : UInt32 = 0_u32)
           super(channel, bytesize + 2 * sizeof(UInt16))
         end
 
@@ -167,7 +167,7 @@ module AMQ
           CLASS_ID
         end
 
-        def initialize(bytesize = 0_u32)
+        def initialize(bytesize : UInt32 = 0_u32)
           super(0_u16, bytesize)
         end
 
@@ -222,7 +222,7 @@ module AMQ
                          } of String => Field,
                          @mechanisms = "AMQPLAIN PLAIN",
                          @locales = "en_US",
-                         bytesize = nil)
+                         bytesize : UInt32? = nil)
             bytesize ||= 1 + 1 + Table.new(@server_properties).bytesize + 4 +
                          @mechanisms.bytesize + 4 + @locales.bytesize
             super(bytesize.to_u32)
