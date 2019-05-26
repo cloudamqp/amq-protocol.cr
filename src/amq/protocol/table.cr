@@ -74,7 +74,7 @@ module AMQ
           size += Table.new(value).bytesize
         when Nil
           size += 0
-        else raise "Unsupported Field type: #{value.class}"
+        else raise Error.new "Unsupported Field type: #{value.class}"
         end
         size
       end
@@ -131,7 +131,7 @@ module AMQ
           io.write_bytes Table.new(value), format
         when Nil
           io.write_byte 'V'.ord.to_u8
-        else raise "Unsupported Field type: #{value.class}"
+        else raise Error.new "Unsupported Field type: #{value.class}"
         end
       end
 
@@ -154,7 +154,7 @@ module AMQ
         when 'T' then Time.unix(Int64.from_io(io, format))
         when 'F' then Table.from_io(io, format)
         when 'V' then nil
-        else raise "Unknown field type '#{type}'"
+        else raise Error.new "Unknown field type '#{type}'"
         end
       end
 
