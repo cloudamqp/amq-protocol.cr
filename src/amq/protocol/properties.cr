@@ -82,7 +82,8 @@ module AMQ
         p.priority = data["priority"]?.try(&.as_i?.try(&.to_u8))
         p.correlation_id = data["correlation_id"]?.try(&.as_s)
         p.reply_to = data["reply_to"]?.try(&.as_s)
-        p.expiration = data["expiration"]?.try(&.as_s)
+        exp = data["expiration"]?
+        p.expiration = exp.try { |e| e.as_s? || e.as_i64?.try(&.to_s) }
         p.message_id = data["message_id"]?.try(&.as_s)
         p.timestamp = data["timestamp"]?.try(&.as_i64?).try { |ms| Time.unix_ms(ms) }
         p.type = data["type"]?.try(&.as_s)
