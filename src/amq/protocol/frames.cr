@@ -75,6 +75,8 @@ module AMQ
           weight = UInt16.from_io(io, format)
           body_size = UInt64.from_io(io, format)
           props = Properties.from_io(io, format)
+          io.skip(bytesize - 8 - 2 - 2 - 4)
+          props = Properties.new
           self.new channel, class_id, weight, body_size, props, bytesize
         end
       end
@@ -96,7 +98,7 @@ module AMQ
           wrap(io, format) do
             copied = IO.copy(@body, io, @body_size)
             if copied != @body_size
-              raise Error::FrameEncode.new("Only #{copied} bytes of #{@body_size} of the body could be copied")
+              raise IO::Error.new("Only #{copied} bytes of #{@body_size} of the body could be copied")
             end
           end
         end

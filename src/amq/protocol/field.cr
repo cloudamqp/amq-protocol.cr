@@ -1,3 +1,5 @@
+require "./short_string"
+
 module AMQ
   module Protocol
     alias Field = Nil |
@@ -11,11 +13,12 @@ module AMQ
                   Int64 |
                   Float32 |
                   Float64 |
+                  ShortString |
                   String |
                   Time |
-                  Hash(String, Field) |
+                  Hash(ShortString, Field) |
                   Array(Field) |
                   Bytes |
-                  Array(Hash(String, Field))
+                  Array(Hash(ShortString, Field))
   end
 end

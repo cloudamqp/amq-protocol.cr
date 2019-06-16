@@ -35,20 +35,20 @@ module AMQ
         priority, correlation_id, reply_to, expiration, message_id, timestamp,
         type, user_id, app_id, reserved1
 
-      def initialize(@content_type : String? = nil,
-                     @content_encoding : String? = nil,
-                     @headers : Hash(String, Field)? = nil,
+      def initialize(@content_type : ShortString? = nil,
+                     @content_encoding : ShortString? = nil,
+                     @headers : Hash(ShortString, Field)? = nil,
                      @delivery_mode : UInt8? = nil,
                      @priority : UInt8? = nil,
-                     @correlation_id : String? = nil,
-                     @reply_to : String? = nil,
-                     @expiration : String? = nil,
-                     @message_id : String? = nil,
+                     @correlation_id : ShortString? = nil,
+                     @reply_to : ShortString? = nil,
+                     @expiration : ShortString? = nil,
+                     @message_id : ShortString? = nil,
                      @timestamp : Time? = nil,
-                     @type : String? = nil,
-                     @user_id : String? = nil,
-                     @app_id : String? = nil,
-                     @reserved1 : String? = nil)
+                     @type : ShortString? = nil,
+                     @user_id : ShortString? = nil,
+                     @app_id : ShortString? = nil,
+                     @reserved1 : ShortString? = nil)
       end
 
       def self.from_io(io, format)
@@ -77,7 +77,7 @@ module AMQ
         p.content_type = data["content_type"]?.try(&.as_s)
         p.content_encoding = data["content_encoding"]?.try(&.as_s)
         p.headers = data["headers"]?.try(&.as_h?)
-          .try { |hdrs| AMQ::Protocol::Properties.cast_to_field(hdrs).as(Hash(String, Field)) }
+          .try { |hdrs| AMQ::Protocol::Properties.cast_to_field(hdrs).as(Hash(ShortString, Field)) }
         p.delivery_mode = data["delivery_mode"]?.try(&.as_i?.try(&.to_u8))
         p.priority = data["priority"]?.try(&.as_i?.try(&.to_u8))
         p.correlation_id = data["correlation_id"]?.try(&.as_s)
@@ -99,7 +99,7 @@ module AMQ
       end
 
       def self.cast_to_field(x : Hash) : Field
-        h = Hash(String, Field).new
+        h = Hash(ShortString, Field).new
         x.each do |(k, v)|
           h[k] = cast_to_field(v).as(Field)
         end
@@ -154,23 +154,25 @@ module AMQ
 
         io.write_bytes(flags, format)
 
-        io.write_bytes ShortString.new(@content_type.not_nil!), format if @content_type
-        io.write_bytes ShortString.new(@content_encoding.not_nil!), format if @content_encoding
+        io.write_bytes @content_type.not_nil!, format if @content_type
+        io.write_bytes @content_encoding.not_nil!, format if @content_encoding
         io.write_bytes Table.new(@headers.not_nil!), format if @headers
         io.write_byte @delivery_mode.not_nil! if @delivery_mode
         io.write_byte @priority.not_nil! if @priority
-        io.write_bytes ShortString.new(@correlation_id.not_nil!), format if @correlation_id
-        io.write_bytes ShortString.new(@reply_to.not_nil!), format if @reply_to
-        io.write_bytes ShortString.new(@expiration.not_nil!), format if @expiration
-        io.write_bytes ShortString.new(@message_id.not_nil!), format if @message_id
+        io.write_bytes @correlation_id.not_nil!, format if @correlation_id
+        io.write_bytes @reply_to.not_nil!, format if @reply_to
+        io.write_bytes @expiration.not_nil!, format if @expiration
+        io.write_bytes @message_id.not_nil!, format if @message_id
         io.write_bytes @timestamp.not_nil!.to_unix.to_i64, format if @timestamp
-        io.write_bytes ShortString.new(@type.not_nil!), format if @type
-        io.write_bytes ShortString.new(@user_id.not_nil!), format if @user_id
-        io.write_bytes ShortString.new(@app_id.not_nil!), format if @app_id
-        io.write_bytes ShortString.new(@reserved1.not_nil!), format if @reserved1
+        io.write_bytes @type.not_nil!, format if @type
+        io.write_bytes @user_id.not_nil!, format if @user_id
+        io.write_bytes @app_id.not_nil!, format if @app_id
+        io.write_bytes @reserved1.not_nil!, format if @reserved1
       end
 
+      @bytesize : Int32?
       def bytesize
+        return @bytesize.not_nil! if @bytesize
         size = 2
         size += 1 + @content_type.not_nil!.bytesize if @content_type
         size += 1 + @content_encoding.not_nil!.bytesize if @content_encoding
@@ -186,6 +188,7 @@ module AMQ
         size += 1 + @user_id.not_nil!.bytesize if @user_id
         size += 1 + @app_id.not_nil!.bytesize if @app_id
         size += 1 + @reserved1.not_nil!.bytesize if @reserved1
+        @bytesize = size
         size
       end
 
