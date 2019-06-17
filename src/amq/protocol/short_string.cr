@@ -16,6 +16,12 @@ module AMQ
         @ptr
       end
 
+      def inspect(io)
+        io << "ShortString("
+        io.write(@ptr.to_slice(@bytesize))
+        io << ")"
+      end
+
       def to_s
         String.new(@ptr, @bytesize)
       end

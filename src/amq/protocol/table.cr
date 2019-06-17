@@ -1,15 +1,16 @@
 module AMQ
   module Protocol
     struct Table
-      def initialize(@hash : Hash(ShortString, Field))
+      def initialize(@hash : Hash(String, Field))
       end
 
-      def self.from_io(io, format, size : UInt32? = nil) : Hash(ShortString, Field)
+      def self.from_io(io, format, size : UInt32? = nil) : Hash(String, Field)
         size ||= UInt32.from_io(io, format)
         pos = 0
-        hash = Hash(ShortString, Field).new
+        hash = Hash(String, Field).new
         while pos < size
-          key = ShortString.from_io(io, format)
+          key_size = io.read_byte || raise IO::EOFError.new
+          key = io.read_string(key_size.not_nil!.to_i32)
           val = read_field(io, format)
           pos += 1 + key.bytesize + field_bytesize(val)
           hash[key] = val
@@ -20,21 +21,18 @@ module AMQ
       def to_io(io, format)
         io.write_bytes(bytesize.to_u32 - 4, format)
         @hash.each do |key, value|
-          io.write_bytes(key, format)
+          io.write_byte key.bytesize.to_u8
+          io.write_utf8 key.to_slice
           write_field(value, io, format)
         end
       end
 
-      @bytesize : UInt32? = nil
-
       def bytesize : UInt32
-        return @bytesize.not_nil! if @bytesize
         size = 4_u32
         @hash.each do |key, value|
           size += 1_u32 + key.bytesize
           size += Table.field_bytesize(value)
         end
-        @bytesize = size
         size
       end
 
@@ -63,8 +61,6 @@ module AMQ
           size += sizeof(Float32)
         when Float64
           size += sizeof(Float64)
-        when ShortString
-          size += 1 + value.bytesize
         when String
           size += sizeof(UInt32) + value.bytesize
         when Slice
@@ -76,7 +72,7 @@ module AMQ
           end
         when Time
           size += sizeof(Int64)
-        when Hash(ShortString, Field)
+        when Hash(String, Field)
           size += Table.new(value).bytesize
         when Nil
           size += 0
@@ -117,9 +113,6 @@ module AMQ
         when Float64
           io.write_byte 'd'.ord.to_u8
           io.write_bytes(value, format)
-        when ShortString
-          io.write_byte 's'.ord.to_u8
-          io.write_bytes value, format
         when String
           io.write_byte 'S'.ord.to_u8
           io.write_bytes LongString.new(value), format
@@ -135,7 +128,7 @@ module AMQ
         when Time
           io.write_byte 'T'.ord.to_u8
           io.write_bytes(value.to_unix.to_i64, format)
-        when Hash(ShortString, Field)
+        when Hash(String, Field)
           io.write_byte 'F'.ord.to_u8
           io.write_bytes Table.new(value), format
         when Nil

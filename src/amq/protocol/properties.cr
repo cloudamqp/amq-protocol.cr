@@ -37,7 +37,7 @@ module AMQ
 
       def initialize(@content_type : ShortString? = nil,
                      @content_encoding : ShortString? = nil,
-                     @headers : Hash(ShortString, Field)? = nil,
+                     @headers : Hash(String, Field)? = nil,
                      @delivery_mode : UInt8? = nil,
                      @priority : UInt8? = nil,
                      @correlation_id : ShortString? = nil,
@@ -77,7 +77,7 @@ module AMQ
         p.content_type = data["content_type"]?.try(&.as_s)
         p.content_encoding = data["content_encoding"]?.try(&.as_s)
         p.headers = data["headers"]?.try(&.as_h?)
-          .try { |hdrs| AMQ::Protocol::Properties.cast_to_field(hdrs).as(Hash(ShortString, Field)) }
+          .try { |hdrs| AMQ::Protocol::Properties.cast_to_field(hdrs).as(Hash(String, Field)) }
         p.delivery_mode = data["delivery_mode"]?.try(&.as_i?.try(&.to_u8))
         p.priority = data["priority"]?.try(&.as_i?.try(&.to_u8))
         p.correlation_id = data["correlation_id"]?.try(&.as_s)
@@ -99,7 +99,7 @@ module AMQ
       end
 
       def self.cast_to_field(x : Hash) : Field
-        h = Hash(ShortString, Field).new
+        h = Hash(String, Field).new
         x.each do |(k, v)|
           h[k] = cast_to_field(v).as(Field)
         end

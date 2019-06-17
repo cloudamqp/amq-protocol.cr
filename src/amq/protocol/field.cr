@@ -16,9 +16,9 @@ module AMQ
                   ShortString |
                   String |
                   Time |
-                  Hash(ShortString, Field) |
+                  Hash(String, Field) |
                   Array(Field) |
                   Bytes |
-                  Array(Hash(ShortString, Field))
+                  Array(Hash(String, Field))
   end
 end
