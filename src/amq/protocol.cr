@@ -1,4 +1,5 @@
 require "./protocol/*"
+require "string_pool"
 
 module AMQ
   module Protocol
