@@ -37,7 +37,7 @@ module AMQ
 
       def initialize(@content_type : String? = nil,
                      @content_encoding : String? = nil,
-                     @headers : Hash(String, Field)? = nil,
+                     @headers : Table? = nil,
                      @delivery_mode : UInt8? = nil,
                      @priority : UInt8? = nil,
                      @correlation_id : String? = nil,
@@ -77,7 +77,7 @@ module AMQ
         p.content_type = data["content_type"]?.try(&.as_s)
         p.content_encoding = data["content_encoding"]?.try(&.as_s)
         p.headers = data["headers"]?.try(&.as_h?)
-          .try { |hdrs| AMQ::Protocol::Properties.cast_to_field(hdrs).as(Hash(String, Field)) }
+          .try { |hdrs| Table.new self.cast_to_field(hdrs).as(Hash(String, Field)) }
         p.delivery_mode = data["delivery_mode"]?.try(&.as_i?.try(&.to_u8))
         p.priority = data["priority"]?.try(&.as_i?.try(&.to_u8))
         p.correlation_id = data["correlation_id"]?.try(&.as_s)
@@ -103,7 +103,7 @@ module AMQ
         x.each do |(k, v)|
           h[k] = cast_to_field(v).as(Field)
         end
-        h.as(Field)
+        h
       end
 
       def self.cast_to_field(x : JSON::Any) : Field
@@ -156,7 +156,7 @@ module AMQ
 
         io.write_bytes ShortString.new(@content_type.not_nil!), format if @content_type
         io.write_bytes ShortString.new(@content_encoding.not_nil!), format if @content_encoding
-        io.write_bytes Table.new(@headers.not_nil!), format if @headers
+        io.write_bytes @headers.not_nil!, format if @headers
         io.write_byte @delivery_mode.not_nil! if @delivery_mode
         io.write_byte @priority.not_nil! if @priority
         io.write_bytes ShortString.new(@correlation_id.not_nil!), format if @correlation_id
@@ -174,7 +174,7 @@ module AMQ
         size = 2
         size += 1 + @content_type.not_nil!.bytesize if @content_type
         size += 1 + @content_encoding.not_nil!.bytesize if @content_encoding
-        size += Table.new(@headers.not_nil!).bytesize if @headers
+        size += @headers.not_nil!.bytesize if @headers
         size += 1 if @delivery_mode
         size += 1 if @priority
         size += 1 + @correlation_id.not_nil!.bytesize if @correlation_id
@@ -193,7 +193,7 @@ module AMQ
         flags = io.read_uint16
         io.seek(io.read_byte.to_i, ::IO::Seek::Current) if flags & FLAG_CONTENT_TYPE > 0
         io.seek(io.read_byte.to_i, ::IO::Seek::Current) if flags & FLAG_CONTENT_ENCODING > 0
-        io.seek(io.read_uint64.to_i, ::IO::Seek::Current) if flags & FLAG_HEADERS > 0
+        io.seek(io.read_uint32.to_i, ::IO::Seek::Current) if flags & FLAG_HEADERS > 0
         io.seek(1, ::IO::Seek::Current) if flags & FLAG_DELIVERY_MODE > 0
         io.seek(1, ::IO::Seek::Current) if flags & FLAG_PRIORITY > 0
         io.seek(io.read_byte.to_i, ::IO::Seek::Current) if flags & FLAG_CORRELATION_ID > 0

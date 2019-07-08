@@ -200,7 +200,7 @@ module AMQ
             wrap(io, format) do
               io.write_byte(@version_major)
               io.write_byte(@version_minor)
-              io.write_bytes Table.new(@server_properties), format
+              io.write_bytes @server_properties, format
               io.write_bytes LongString.new(@mechanisms), format
               io.write_bytes LongString.new(@locales), format
             end
@@ -209,7 +209,7 @@ module AMQ
           getter server_properties
 
           def initialize(@version_major = 0_u8, @version_minor = 9_u8,
-                         @server_properties : Hash(String, Field) = {
+                         @server_properties = Table.new({
                            "capabilities" => {
                              "publisher_confirms"           => true,
                              "exchange_exchange_bindings"   => true,
@@ -219,11 +219,11 @@ module AMQ
                              "consumer_cancel_notify"       => true,
                              "connection.blocked"           => true,
                            } of String => Field,
-                         } of String => Field,
+                         } of String => Field),
                          @mechanisms = "AMQPLAIN PLAIN",
                          @locales = "en_US",
                          bytesize : UInt32? = nil)
-            bytesize ||= 1 + 1 + Table.new(@server_properties).bytesize + 4 +
+            bytesize ||= 1 + 1 + @server_properties.bytesize + 4 +
                          @mechanisms.bytesize + 4 + @locales.bytesize
             super(bytesize.to_u32)
           end
@@ -247,16 +247,16 @@ module AMQ
             METHOD_ID
           end
 
-          def initialize(@client_properties : Hash(String, Field), @mechanism : String,
+          def initialize(@client_properties : Table, @mechanism : String,
                          @response : String, @locale : String, bytesize = nil)
-            bytesize ||= Table.new(@client_properties).bytesize + 1 + @mechanism.bytesize + 4 +
+            bytesize ||= @client_properties.bytesize + 1 + @mechanism.bytesize + 4 +
                          @response.bytesize + 1 + @locale.bytesize
             super(bytesize.to_u32)
           end
 
           def to_io(io, format)
             wrap(io, format) do
-              io.write_bytes Table.new(@client_properties), format
+              io.write_bytes @client_properties, format
               io.write_bytes ShortString.new(@mechanism), format
               io.write_bytes LongString.new(@response), format
               io.write_bytes ShortString.new(@locale), format
@@ -682,9 +682,9 @@ module AMQ
 
           def initialize(channel : UInt16, @reserved1 : UInt16, @exchange_name : String,
                          @exchange_type : String, @passive : Bool, @durable : Bool, @auto_delete : Bool,
-                         @internal : Bool, @no_wait : Bool, @arguments : Hash(String, Field),
+                         @internal : Bool, @no_wait : Bool, @arguments : Table,
                          bytesize = nil)
-            bytesize ||= 2 + 1 + @exchange_name.bytesize + 1 + @exchange_type.bytesize + 1 + Table.new(@arguments).bytesize
+            bytesize ||= 2 + 1 + @exchange_name.bytesize + 1 + @exchange_type.bytesize + 1 + @arguments.bytesize
             super(channel, bytesize.to_u32)
           end
 
@@ -700,7 +700,7 @@ module AMQ
               bits = bits | (1 << 3) if @internal
               bits = bits | (1 << 4) if @no_wait
               io.write_byte(bits)
-              io.write_bytes Table.new(@arguments), format
+              io.write_bytes @arguments, format
             end
           end
 
@@ -799,10 +799,10 @@ module AMQ
 
           def initialize(channel : UInt16, @reserved1 : UInt16, @destination : String,
                          @source : String, @routing_key : String, @no_wait : Bool,
-                         @arguments : Hash(String, Field),
+                         @arguments : Table,
                          bytesize = nil)
             bytesize ||= 2 + 2 + 1 + @destination.bytesize + 1 + @source.bytesize + 1 +
-                         @routing_key.bytesize + 1 + Table.new(@arguments).bytesize
+                         @routing_key.bytesize + 1 + @arguments.bytesize
             super(channel, bytesize.to_u32)
           end
 
@@ -813,7 +813,7 @@ module AMQ
               io.write_bytes ShortString.new(@source), format
               io.write_bytes ShortString.new(@routing_key), format
               io.write_byte @no_wait ? 1_u8 : 0_u8
-              io.write_bytes Table.new(@arguments), format
+              io.write_bytes @arguments, format
             end
           end
 
@@ -856,9 +856,9 @@ module AMQ
 
           def initialize(channel : UInt16, @reserved1 : UInt16, @destination : String,
                          @source : String, @routing_key : String, @no_wait : Bool,
-                         @arguments : Hash(String, Field), bytesize = nil)
+                         @arguments : Table, bytesize = nil)
             bytesize ||= 2 + 1 + @destination.bytesize + 1 + @source.bytesize + 1 +
-                         @routing_key.bytesize + 1 + Table.new(@arguments).bytesize
+                         @routing_key.bytesize + 1 + @arguments.bytesize
             super(channel, bytesize.to_u32)
           end
 
@@ -869,7 +869,7 @@ module AMQ
               io.write_bytes ShortString.new(@source), format
               io.write_bytes ShortString.new(@routing_key), format
               io.write_byte @no_wait ? 1_u8 : 0_u8
-              io.write_bytes Table.new(@arguments), format
+              io.write_bytes @arguments, format
             end
           end
 
@@ -938,9 +938,9 @@ module AMQ
 
           def initialize(channel : UInt16, @reserved1 : UInt16, @queue_name : String,
                          @passive : Bool, @durable : Bool, @exclusive : Bool,
-                         @auto_delete : Bool, @no_wait : Bool, @arguments : Hash(String, Field),
+                         @auto_delete : Bool, @no_wait : Bool, @arguments : Table,
                          bytesize = nil)
-            bytesize ||= 2 + 1 + @queue_name.bytesize + 1 + Table.new(@arguments).bytesize
+            bytesize ||= 2 + 1 + @queue_name.bytesize + 1 + @arguments.bytesize
             super(channel, bytesize.to_u32)
           end
 
@@ -955,7 +955,7 @@ module AMQ
               bits = bits | (1 << 3) if @auto_delete
               bits = bits | (1 << 4) if @no_wait
               io.write_byte(bits)
-              io.write_bytes Table.new(@arguments), format
+              io.write_bytes @arguments, format
             end
           end
 
@@ -1015,9 +1015,9 @@ module AMQ
 
           def initialize(channel : UInt16, @reserved1 : UInt16, @queue_name : String,
                          @exchange_name : String, @routing_key : String, @no_wait : Bool,
-                         @arguments : Hash(String, Field), bytesize = nil)
+                         @arguments : Table, bytesize = nil)
             bytesize ||= 2 + 1 + @queue_name.bytesize + 1 + @exchange_name.bytesize + 1 +
-                         @routing_key.bytesize + 1 + Table.new(@arguments).bytesize
+                         @routing_key.bytesize + 1 + @arguments.bytesize
             super(channel, bytesize.to_u32)
           end
 
@@ -1028,7 +1028,7 @@ module AMQ
               io.write_bytes ShortString.new(@exchange_name), format
               io.write_bytes ShortString.new(@routing_key), format
               io.write_byte @no_wait ? 1_u8 : 0_u8
-              io.write_bytes Table.new(@arguments), format
+              io.write_bytes @arguments, format
             end
           end
 
@@ -1135,9 +1135,9 @@ module AMQ
 
           def initialize(channel : UInt16, @reserved1 : UInt16, @queue_name : String,
                          @exchange_name : String, @routing_key : String,
-                         @arguments : Hash(String, Field), bytesize = nil)
+                         @arguments : Table, bytesize = nil)
             bytesize ||= 2 + 1 + @queue_name.bytesize + 1 + @exchange_name.bytesize + 1 +
-                         @routing_key.bytesize + Table.new(@arguments).bytesize
+                         @routing_key.bytesize + @arguments.bytesize
             super(channel, bytesize.to_u32)
           end
 
@@ -1147,7 +1147,7 @@ module AMQ
               io.write_bytes ShortString.new(@queue_name), format
               io.write_bytes ShortString.new(@exchange_name), format
               io.write_bytes ShortString.new(@routing_key), format
-              io.write_bytes Table.new(@arguments), format
+              io.write_bytes @arguments, format
             end
           end
 
@@ -1577,9 +1577,9 @@ module AMQ
 
           def initialize(channel, @reserved1 : UInt16, @queue : String, @consumer_tag : String,
                          @no_local : Bool, @no_ack : Bool, @exclusive : Bool, @no_wait : Bool,
-                         @arguments : Hash(String, Field), bytesize = nil)
+                         @arguments : Table, bytesize = nil)
             bytesize ||= 2 + 1 + @queue.bytesize + 1 + @consumer_tag.bytesize + 1 +
-                         Table.new(@arguments).bytesize
+                         @arguments.bytesize
             super(channel, bytesize.to_u32)
           end
 
@@ -1594,7 +1594,7 @@ module AMQ
               bits = bits | (1 << 2) if @exclusive
               bits = bits | (1 << 3) if @no_wait
               io.write_byte(bits)
-              io.write_bytes Table.new(@arguments), format
+              io.write_bytes @arguments, format
             end
           end
 

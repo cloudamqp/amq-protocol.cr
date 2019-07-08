@@ -1,3 +1,5 @@
+require "./table"
+
 module AMQ
   module Protocol
     alias Field = Nil |
@@ -13,9 +15,10 @@ module AMQ
                   Float64 |
                   String |
                   Time |
+                  Table |
                   Hash(String, Field) |
                   Array(Field) |
                   Bytes |
-                  Array(Hash(String, Field))
+                  Array(Table)
   end
 end

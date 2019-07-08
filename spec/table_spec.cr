@@ -42,7 +42,22 @@ describe AMQ::Protocol::Table do
     io.pos.should eq(tbl.bytesize)
     io.pos = 0
     data2 = AMQ::Protocol::Table.from_io(io, IO::ByteFormat::NetworkEndian)
-    data2.should eq data
+    data2.should eq tbl
+  end
+
+  it "can be modified" do
+    tbl = AMQ::Protocol::Table.new(Hash(String, AMQ::Protocol::Field){
+      "key" => "value"
+    })
+    tbl.bytesize.should eq(sizeof(UInt32) + 1 + "key".bytesize + 1 + sizeof(UInt32) + "value".bytesize)
+    tbl["key"] = 1
+    tbl.bytesize.should eq(sizeof(UInt32) + 1 + "key".bytesize + 1 + sizeof(Int32))
+    io = IO::Memory.new
+    io.write_bytes tbl, IO::ByteFormat::NetworkEndian
+    io.rewind
+    tbl2 = AMQ::Protocol::Table.from_io(io, IO::ByteFormat::NetworkEndian)
+    tbl2.should eq tbl
+    tbl2.bytesize.should eq(sizeof(UInt32) + 1 + "key".bytesize + 1 + sizeof(Int32))
   end
 end
 
