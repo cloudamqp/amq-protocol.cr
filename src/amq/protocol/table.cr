@@ -1,6 +1,6 @@
 module AMQ
   module Protocol
-    class Table
+    struct Table
       def initialize(hash : Hash(String, Field)?, @io = IO::Memory.new,  @format = IO::ByteFormat::NetworkEndian)
         hash.each do |key, value|
           @io.write_bytes(ShortString.new(key), @format)
@@ -102,7 +102,6 @@ module AMQ
       end
 
       def ==(other : self)
-        return true if same?(other)
         return false if bytesize != other.bytesize
         buffer.memcmp(other.buffer, bytesize - sizeof(UInt32))
       end
