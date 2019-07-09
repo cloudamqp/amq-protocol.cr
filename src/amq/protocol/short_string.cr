@@ -1,3 +1,5 @@
+require "string_pool"
+
 module AMQ
   module Protocol
     struct ShortString
