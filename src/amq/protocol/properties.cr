@@ -85,7 +85,7 @@ module AMQ
         exp = data["expiration"]?
         p.expiration = exp.try { |e| e.as_s? || e.as_i64?.try(&.to_s) }
         p.message_id = data["message_id"]?.try(&.as_s)
-        p.timestamp = data["timestamp"]?.try(&.as_i64?).try { |ms| Time.unix_ms(ms) }
+        p.timestamp = data["timestamp"]?.try(&.as_i64?).try { |s| Time.unix(s) }
         p.type = data["type"]?.try(&.as_s)
         p.user_id = data["user_id"]?.try(&.as_s)
         p.app_id = data["app_id"]?.try(&.as_s)
