@@ -518,7 +518,7 @@ module AMQ
 
           def self.from_io(channel, bytesize, io, format)
             reserved1 = ShortString.from_io(io, format)
-            Open.new channel, reserved1, bytesize
+            self.new channel, reserved1, bytesize
           end
         end
 
@@ -544,7 +544,7 @@ module AMQ
 
           def self.from_io(channel, bytesize, io, format)
             reserved1 = LongString.from_io(io, format)
-            OpenOk.new channel, reserved1, bytesize
+            self.new channel, reserved1, bytesize
           end
         end
 
@@ -569,7 +569,7 @@ module AMQ
 
           def self.from_io(channel, bytesize, io, format)
             active = (io.read_byte || raise IO::EOFError.new) > 0
-            Flow.new channel, active
+            self.new channel, active
           end
         end
 
@@ -594,7 +594,7 @@ module AMQ
 
           def self.from_io(channel, bytesize, io, format)
             active = (io.read_byte || raise IO::EOFError.new) > 0
-            FlowOk.new channel, active
+            self.new channel, active
           end
         end
 
