@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2] - 2019-09-11
+
+### Fixed
+- GetEmpty parsed correctly (short-string argument instead of UInt16)
+
 ## [0.3.1] - 2019-09-11
 
 ### Fixed
