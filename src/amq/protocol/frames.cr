@@ -1419,19 +1419,20 @@ module AMQ
             METHOD_ID
           end
 
-          def initialize(channel, @reserved1 = 0_u16)
-            super(channel, 2_u32)
+          def initialize(channel, @reserved1 = "", bytesize = nil)
+            bytesize ||= 1 + @reserved1.bytesize
+            super(channel, bytesize.to_u32)
           end
 
           def to_io(io, format)
             wrap(io, format) do
-              io.write_bytes @reserved1, format
+              io.write_bytes ShortString.new(@reserved1), format
             end
           end
 
           def self.from_io(channel, bytesize, io, format)
-            reserved1 = UInt16.from_io(io, format)
-            self.new channel, reserved1
+            reserved1 = ShortString.from_io(io, format)
+            self.new channel, reserved1, bytesize
           end
         end
 
