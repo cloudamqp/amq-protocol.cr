@@ -1,3 +1,10 @@
+class IO::Memory
+  def free
+    close
+    GC.free @buffer.as(Pointer(Void))
+  end
+end
+
 module AMQ
   module Protocol
     struct Table
@@ -142,6 +149,7 @@ module AMQ
         io.write_bytes(@io.bytesize.to_u32, format)
         @io.rewind
         IO.copy(@io, io, @io.bytesize)
+        @io.free
       end
 
       def self.from_io(io, format, size : UInt32? = nil) : self
