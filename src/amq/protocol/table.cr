@@ -139,7 +139,7 @@ module AMQ
         unless @format == format
           raise Error.new("Different in/out format")
         end
-        io.write_bytes((bytesize - sizeof(UInt32)).to_u32, format)
+        io.write_bytes(@io.bytesize.to_u32, format)
         @io.rewind
         IO.copy(@io, io, @io.bytesize)
       end
