@@ -97,6 +97,19 @@ module AMQ
         end
       end
 
+      def inspect(io)
+        io << {{@type.name.id.stringify}} << '('
+        first = true
+        @io.rewind
+        while @io.pos < @io.bytesize
+          io << ", " unless first
+          io << '@' << ShortString.from_io(@io, @format)
+          io << '=' << read_field
+          first = false
+        end
+        io << ')'
+      end
+
       def buffer
         @io.buffer
       end
