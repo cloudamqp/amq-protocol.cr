@@ -934,7 +934,8 @@ module AMQ
             METHOD_ID
           end
 
-          property reserved1, queue_name, passive, durable, exclusive, auto_delete, no_wait, arguments
+          getter reserved1, passive, durable, exclusive, auto_delete, no_wait, arguments
+          property queue_name
 
           def initialize(channel : UInt16, @reserved1 : UInt16, @queue_name : String,
                          @passive : Bool, @durable : Bool, @exclusive : Bool,
@@ -1011,7 +1012,8 @@ module AMQ
             METHOD_ID
           end
 
-          getter reserved1, queue_name, exchange_name, routing_key, no_wait, arguments
+          getter reserved1, exchange_name, routing_key, no_wait, arguments
+          property queue_name
 
           def initialize(channel : UInt16, @reserved1 : UInt16, @queue_name : String,
                          @exchange_name : String, @routing_key : String, @no_wait : Bool,
@@ -1574,7 +1576,8 @@ module AMQ
             METHOD_ID
           end
 
-          property queue, consumer_tag, no_local, no_ack, exclusive, no_wait, arguments
+          getter queue, no_local, no_ack, exclusive, no_wait, arguments
+          property consumer_tag
 
           def initialize(channel, @reserved1 : UInt16, @queue : String, @consumer_tag : String,
                          @no_local : Bool, @no_ack : Bool, @exclusive : Bool, @no_wait : Bool,
