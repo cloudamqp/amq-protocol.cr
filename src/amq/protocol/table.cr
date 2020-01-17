@@ -11,6 +11,10 @@ module AMQ
       def initialize(@io = IO::Memory.new(0), @format = IO::ByteFormat::NetworkEndian)
       end
 
+      def clone
+        Table.new @io.clone, @format.clone
+      end
+
       def []?(key : String)
         fetch(key) { nil }
       end
@@ -286,6 +290,13 @@ module AMQ
       class IO::Memory
         def bytesize=(value)
           @bytesize = value
+        end
+
+        def clone
+          rewind
+          io = IO::Memory.new bytesize
+          IO.copy self, io
+          io
         end
       end
     end

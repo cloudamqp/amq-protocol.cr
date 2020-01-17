@@ -206,6 +206,25 @@ module AMQ
         io.seek(io.read_byte.to_i, ::IO::Seek::Current) if flags & FLAG_APP_ID > 0
         io.seek(io.read_byte.to_i, ::IO::Seek::Current) if flags & FLAG_RESERVED1 > 0
       end
+
+      def clone
+        Properties.new(
+          @content_type.clone,
+          @content_encoding.clone,
+          @headers.clone,
+          @delivery_mode.clone,
+          @priority.clone,
+          @correlation_id.clone,
+          @reply_to.clone,
+          @expiration.clone,
+          @message_id.clone,
+          @timestamp.clone,
+          @type.clone,
+          @user_id.clone,
+          @app_id.clone,
+          @reserved1.clone
+        )
+      end
     end
   end
 end
