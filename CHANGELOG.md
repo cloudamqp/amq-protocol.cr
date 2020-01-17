@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.3] - 2019-10-21
+
+### Added
+- Queue::Bind#queue_name is now a property (as opposed to a reader)
+- Frame#inspect
+
 ## [0.3.2] - 2019-09-11
 
 ### Fixed
