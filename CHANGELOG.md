@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.4] - 2020-01-17
+
+### Added
+- Clone methods for Properties and Table
+
 ## [0.3.3] - 2019-10-21
 
 ### Added
