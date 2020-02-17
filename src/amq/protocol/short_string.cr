@@ -3,8 +3,6 @@ require "string_pool"
 module AMQ
   module Protocol
     struct ShortString
-      POOL = StringPool.new
-
       def initialize(@str : String)
       end
 
@@ -16,9 +14,7 @@ module AMQ
 
       def self.from_io(io, format) : String
         sz = io.read_byte || raise IO::EOFError.new("Can't read short string")
-        buf = uninitialized UInt8[256]
-        io.read_fully(buf.to_slice[0, sz])
-        POOL.get(buf.to_unsafe, sz)
+        io.read_string(sz)
       end
     end
   end
