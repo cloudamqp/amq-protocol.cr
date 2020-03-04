@@ -3,7 +3,7 @@ require "string_pool"
 module AMQ
   module Protocol
     struct ShortString
-      POOL = StringPool.new
+      POOL = StringPool.new(256)
 
       def initialize(@str : String)
       end
