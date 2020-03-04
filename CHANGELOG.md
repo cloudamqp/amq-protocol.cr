@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.5] - 2020-03-04
+
+### Changed
+- The initial capacity of the string pool in ShortString is increased to 256 entries
+
 ## [0.3.4] - 2020-01-17
 
 ### Added
