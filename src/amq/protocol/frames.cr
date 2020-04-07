@@ -40,7 +40,7 @@ module AMQ
         rescue ex
           begin
             io.read_byte
-          rescue IO::Error | Errno
+          rescue IO::Error
           end
           raise ex
         end
