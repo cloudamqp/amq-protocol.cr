@@ -6,14 +6,15 @@ module AMQ
       def initialize(@channel : UInt16, @bytesize : UInt32)
       end
 
-      abstract def to_io(io, format)
       abstract def type : UInt8
 
-      def wrap(io, format : IO::ByteFormat)
+      def to_io(io, format : IO::ByteFormat)
         io.write_byte type
         io.write_bytes @channel, format
         io.write_bytes @bytesize, format
-        yield
+      end
+
+      protected def frame_end(io)
         io.write_byte 206_u8
       end
 
@@ -62,12 +63,12 @@ module AMQ
         end
 
         def to_io(io : IO, format : IO::ByteFormat)
-          wrap(io, format) do
-            io.write_bytes @class_id, format
-            io.write_bytes @weight, format
-            io.write_bytes @body_size, format
-            io.write_bytes @properties, format
-          end
+          super
+          io.write_bytes @class_id, format
+          io.write_bytes @weight, format
+          io.write_bytes @body_size, format
+          io.write_bytes @properties, format
+          frame_end(io)
         end
 
         def self.from_io(channel, bytesize, io, format)
@@ -93,12 +94,12 @@ module AMQ
         end
 
         def to_io(io, format)
-          wrap(io, format) do
-            copied = IO.copy(@body, io, @body_size)
-            if copied != @body_size
-              raise Error::FrameEncode.new("Only #{copied} bytes of #{@body_size} of the body could be copied")
-            end
+          super
+          copied = IO.copy(@body, io, @body_size)
+          if copied != @body_size
+            raise Error::FrameEncode.new("Only #{copied} bytes of #{@body_size} of the body could be copied")
           end
+          frame_end(io)
         end
       end
 
@@ -115,7 +116,8 @@ module AMQ
         end
 
         def to_io(io, format)
-          wrap(io, format) { }
+          super
+          frame_end(io)
         end
       end
 
@@ -135,12 +137,10 @@ module AMQ
         abstract def class_id : UInt16
         abstract def method_id : UInt16
 
-        def wrap(io, format)
-          super(io, format) do
-            io.write_bytes class_id, format
-            io.write_bytes method_id, format
-            yield
-          end
+        def to_io(io, format)
+          super
+          io.write_bytes class_id, format
+          io.write_bytes method_id, format
         end
 
         def self.from_io(channel, bytesize, io, format)
@@ -197,34 +197,34 @@ module AMQ
           end
 
           def to_io(io, format)
-            wrap(io, format) do
-              io.write_byte(@version_major)
-              io.write_byte(@version_minor)
-              io.write_bytes @server_properties, format
-              io.write_bytes LongString.new(@mechanisms), format
-              io.write_bytes LongString.new(@locales), format
-            end
+            super
+            io.write_byte(@version_major)
+            io.write_byte(@version_minor)
+            io.write_bytes @server_properties, format
+            io.write_bytes LongString.new(@mechanisms), format
+            io.write_bytes LongString.new(@locales), format
+            frame_end(io)
           end
 
           getter server_properties
 
           def initialize(@version_major = 0_u8, @version_minor = 9_u8,
                          @server_properties = Table.new({
-                           "capabilities" => {
-                             "publisher_confirms"           => true,
-                             "exchange_exchange_bindings"   => true,
-                             "basic.nack"                   => true,
-                             "per_consumer_qos"             => true,
-                             "authentication_failure_close" => true,
-                             "consumer_cancel_notify"       => true,
-                             "connection.blocked"           => true,
-                           } of String => Field,
-                         } of String => Field),
-                         @mechanisms = "AMQPLAIN PLAIN",
-                         @locales = "en_US",
-                         bytesize : UInt32? = nil)
+            "capabilities" => {
+              "publisher_confirms"           => true,
+              "exchange_exchange_bindings"   => true,
+              "basic.nack"                   => true,
+              "per_consumer_qos"             => true,
+              "authentication_failure_close" => true,
+              "consumer_cancel_notify"       => true,
+              "connection.blocked"           => true,
+            } of String => Field,
+          } of String => Field),
+          @mechanisms = "AMQPLAIN PLAIN",
+          @locales = "en_US",
+          bytesize : UInt32? = nil)
             bytesize ||= 1 + 1 + @server_properties.bytesize + 4 +
-                         @mechanisms.bytesize + 4 + @locales.bytesize
+              @mechanisms.bytesize + 4 + @locales.bytesize
             super(bytesize.to_u32)
           end
 
@@ -250,17 +250,17 @@ module AMQ
           def initialize(@client_properties : Table, @mechanism : String,
                          @response : String, @locale : String, bytesize = nil)
             bytesize ||= @client_properties.bytesize + 1 + @mechanism.bytesize + 4 +
-                         @response.bytesize + 1 + @locale.bytesize
+              @response.bytesize + 1 + @locale.bytesize
             super(bytesize.to_u32)
           end
 
           def to_io(io, format)
-            wrap(io, format) do
-              io.write_bytes @client_properties, format
-              io.write_bytes ShortString.new(@mechanism), format
-              io.write_bytes LongString.new(@response), format
-              io.write_bytes ShortString.new(@locale), format
-            end
+            super
+            io.write_bytes @client_properties, format
+            io.write_bytes ShortString.new(@mechanism), format
+            io.write_bytes LongString.new(@response), format
+            io.write_bytes ShortString.new(@locale), format
+            frame_end(io)
           end
 
           def self.from_io(io, bytesize, format)
@@ -285,11 +285,11 @@ module AMQ
           end
 
           def to_io(io, format)
-            wrap(io, format) do
-              io.write_bytes(@channel_max, format)
-              io.write_bytes(@frame_max, format)
-              io.write_bytes(@heartbeat, format)
-            end
+            super
+            io.write_bytes(@channel_max, format)
+            io.write_bytes(@frame_max, format)
+            io.write_bytes(@heartbeat, format)
+            frame_end(io)
           end
 
           def self.from_io(io, bytesize, format)
@@ -313,11 +313,11 @@ module AMQ
           end
 
           def to_io(io, format)
-            wrap(io, format) do
-              io.write_bytes(@channel_max, format)
-              io.write_bytes(@frame_max, format)
-              io.write_bytes(@heartbeat, format)
-            end
+            super
+            io.write_bytes(@channel_max, format)
+            io.write_bytes(@frame_max, format)
+            io.write_bytes(@heartbeat, format)
+            frame_end(io)
           end
 
           def self.from_io(io, bytesize, format)
@@ -342,11 +342,11 @@ module AMQ
           end
 
           def to_io(io, format)
-            wrap(io, format) do
-              io.write_bytes ShortString.new(@vhost), format
-              io.write_bytes ShortString.new(@reserved1), format
-              io.write_byte @reserved2 ? 1_u8 : 0_u8
-            end
+            super
+            io.write_bytes ShortString.new(@vhost), format
+            io.write_bytes ShortString.new(@reserved1), format
+            io.write_byte @reserved2 ? 1_u8 : 0_u8
+            frame_end(io)
           end
 
           def self.from_io(io, bytesize, format)
@@ -372,9 +372,9 @@ module AMQ
           end
 
           def to_io(io, format)
-            wrap(io, format) do
-              io.write_bytes ShortString.new(@reserved1), format
-            end
+            super
+            io.write_bytes ShortString.new(@reserved1), format
+            frame_end(io)
           end
 
           def self.from_io(io, bytesize, format)
@@ -399,12 +399,12 @@ module AMQ
           end
 
           def to_io(io, format)
-            wrap(io, format) do
-              io.write_bytes(@reply_code, format)
-              io.write_bytes ShortString.new(@reply_text), format
-              io.write_bytes(@failing_class_id, format)
-              io.write_bytes(@failing_method_id, format)
-            end
+            super
+            io.write_bytes(@reply_code, format)
+            io.write_bytes ShortString.new(@reply_text), format
+            io.write_bytes(@failing_class_id, format)
+            io.write_bytes(@failing_method_id, format)
+            frame_end(io)
           end
 
           def self.from_io(io, bytesize, format)
@@ -424,7 +424,8 @@ module AMQ
           end
 
           def to_io(io, format)
-            wrap(io, format) { }
+            super
+            frame_end(io)
           end
 
           def self.from_io(io, bytesize, format)
@@ -447,9 +448,9 @@ module AMQ
           end
 
           def to_io(io, format)
-            wrap(io, format) do
-              io.write_bytes ShortString.new(@reason), format
-            end
+            super
+            io.write_bytes ShortString.new(@reason), format
+            frame_end(io)
           end
 
           def self.from_io(io, bytesize, format)
@@ -466,7 +467,8 @@ module AMQ
           end
 
           def to_io(io, format)
-            wrap(io, format) { }
+            super
+            frame_end(io)
           end
 
           def self.from_io(io, bytesize, format)
@@ -511,9 +513,9 @@ module AMQ
           end
 
           def to_io(io, format)
-            wrap(io, format) do
-              io.write_bytes ShortString.new(@reserved1), format
-            end
+            super
+            io.write_bytes ShortString.new(@reserved1), format
+            frame_end(io)
           end
 
           def self.from_io(channel, bytesize, io, format)
@@ -537,9 +539,9 @@ module AMQ
           end
 
           def to_io(io, format)
-            wrap(io, format) do
-              io.write_bytes LongString.new(@reserved1), format
-            end
+            super
+            io.write_bytes LongString.new(@reserved1), format
+            frame_end(io)
           end
 
           def self.from_io(channel, bytesize, io, format)
@@ -562,9 +564,9 @@ module AMQ
           end
 
           def to_io(io, format)
-            wrap(io, format) do
-              io.write_byte @active ? 1_u8 : 0_u8
-            end
+            super
+            io.write_byte @active ? 1_u8 : 0_u8
+            frame_end(io)
           end
 
           def self.from_io(channel, bytesize, io, format)
@@ -587,9 +589,9 @@ module AMQ
           end
 
           def to_io(io, format)
-            wrap(io, format) do
-              io.write_byte @active ? 1_u8 : 0_u8
-            end
+            super
+            io.write_byte @active ? 1_u8 : 0_u8
+            frame_end(io)
           end
 
           def self.from_io(channel, bytesize, io, format)
@@ -614,12 +616,12 @@ module AMQ
           end
 
           def to_io(io, format)
-            wrap(io, format) do
-              io.write_bytes(@reply_code, format)
-              io.write_bytes ShortString.new(@reply_text), format
-              io.write_bytes(@classid, format)
-              io.write_bytes(@methodid, format)
-            end
+            super
+            io.write_bytes(@reply_code, format)
+            io.write_bytes ShortString.new(@reply_text), format
+            io.write_bytes(@classid, format)
+            io.write_bytes(@methodid, format)
+            frame_end(io)
           end
 
           def self.from_io(channel, bytesize, io, format)
@@ -639,7 +641,8 @@ module AMQ
           end
 
           def to_io(io, format)
-            wrap(io, format) { }
+            super
+            frame_end(io)
           end
 
           def self.from_io(channel, bytesize, io, format)
@@ -689,19 +692,19 @@ module AMQ
           end
 
           def to_io(io, format)
-            wrap(io, format) do
-              io.write_bytes @reserved1, format
-              io.write_bytes ShortString.new(@exchange_name), format
-              io.write_bytes ShortString.new(@exchange_type), format
-              bits = 0_u8
-              bits = bits | (1 << 0) if @passive
-              bits = bits | (1 << 1) if @durable
-              bits = bits | (1 << 2) if @auto_delete
-              bits = bits | (1 << 3) if @internal
-              bits = bits | (1 << 4) if @no_wait
-              io.write_byte(bits)
-              io.write_bytes @arguments, format
-            end
+            super
+            io.write_bytes @reserved1, format
+            io.write_bytes ShortString.new(@exchange_name), format
+            io.write_bytes ShortString.new(@exchange_type), format
+            bits = 0_u8
+            bits = bits | (1 << 0) if @passive
+            bits = bits | (1 << 1) if @durable
+            bits = bits | (1 << 2) if @auto_delete
+            bits = bits | (1 << 3) if @internal
+            bits = bits | (1 << 4) if @no_wait
+            io.write_byte(bits)
+            io.write_bytes @arguments, format
+            frame_end(io)
           end
 
           def self.from_io(channel, bytesize, io, format)
@@ -728,7 +731,8 @@ module AMQ
           end
 
           def to_io(io, format)
-            wrap(io, format) { }
+            super
+            frame_end(io)
           end
 
           def self.from_io(channel, bytesize, io, format)
@@ -752,14 +756,14 @@ module AMQ
           end
 
           def to_io(io, format)
-            wrap(io, format) do
-              io.write_bytes @reserved1, format
-              io.write_bytes ShortString.new(@exchange_name), format
-              bits = 0_u8
-              bits = bits | (1 << 0) if @if_unused
-              bits = bits | (1 << 1) if @no_wait
-              io.write_byte(bits)
-            end
+            super
+            io.write_bytes @reserved1, format
+            io.write_bytes ShortString.new(@exchange_name), format
+            bits = 0_u8
+            bits = bits | (1 << 0) if @if_unused
+            bits = bits | (1 << 1) if @no_wait
+            io.write_byte(bits)
+            frame_end(io)
           end
 
           def self.from_io(channel, bytesize, io, format)
@@ -780,7 +784,8 @@ module AMQ
           end
 
           def to_io(io, format)
-            wrap(io, format) { }
+            super
+            frame_end(io)
           end
 
           def self.from_io(channel, bytesize, io, format)
@@ -802,19 +807,19 @@ module AMQ
                          @arguments : Table,
                          bytesize = nil)
             bytesize ||= 2 + 2 + 1 + @destination.bytesize + 1 + @source.bytesize + 1 +
-                         @routing_key.bytesize + 1 + @arguments.bytesize
+              @routing_key.bytesize + 1 + @arguments.bytesize
             super(channel, bytesize.to_u32)
           end
 
           def to_io(io, format)
-            wrap(io, format) do
-              io.write_bytes @reserved1, format
-              io.write_bytes ShortString.new(@destination), format
-              io.write_bytes ShortString.new(@source), format
-              io.write_bytes ShortString.new(@routing_key), format
-              io.write_byte @no_wait ? 1_u8 : 0_u8
-              io.write_bytes @arguments, format
-            end
+            super
+            io.write_bytes @reserved1, format
+            io.write_bytes ShortString.new(@destination), format
+            io.write_bytes ShortString.new(@source), format
+            io.write_bytes ShortString.new(@routing_key), format
+            io.write_byte @no_wait ? 1_u8 : 0_u8
+            io.write_bytes @arguments, format
+            frame_end(io)
           end
 
           def self.from_io(channel, bytesize, io, format)
@@ -837,7 +842,8 @@ module AMQ
           end
 
           def to_io(io, format)
-            wrap(io, format) { }
+            super
+            frame_end(io)
           end
 
           def self.from_io(channel, bytesize, io, format)
@@ -858,19 +864,19 @@ module AMQ
                          @source : String, @routing_key : String, @no_wait : Bool,
                          @arguments : Table, bytesize = nil)
             bytesize ||= 2 + 1 + @destination.bytesize + 1 + @source.bytesize + 1 +
-                         @routing_key.bytesize + 1 + @arguments.bytesize
+              @routing_key.bytesize + 1 + @arguments.bytesize
             super(channel, bytesize.to_u32)
           end
 
           def to_io(io, format)
-            wrap(io, format) do
-              io.write_bytes @reserved1, format
-              io.write_bytes ShortString.new(@destination), format
-              io.write_bytes ShortString.new(@source), format
-              io.write_bytes ShortString.new(@routing_key), format
-              io.write_byte @no_wait ? 1_u8 : 0_u8
-              io.write_bytes @arguments, format
-            end
+            super
+            io.write_bytes @reserved1, format
+            io.write_bytes ShortString.new(@destination), format
+            io.write_bytes ShortString.new(@source), format
+            io.write_bytes ShortString.new(@routing_key), format
+            io.write_byte @no_wait ? 1_u8 : 0_u8
+            io.write_bytes @arguments, format
+            frame_end(io)
           end
 
           def self.from_io(channel, bytesize, io, format)
@@ -893,7 +899,8 @@ module AMQ
           end
 
           def to_io(io, format)
-            wrap(io, format) { }
+            super
+            frame_end(io)
           end
 
           def self.from_io(channel, bytesize, io, format)
@@ -946,18 +953,18 @@ module AMQ
           end
 
           def to_io(io, format)
-            wrap(io, format) do
-              io.write_bytes @reserved1, format
-              io.write_bytes ShortString.new(@queue_name), format
-              bits = 0_u8
-              bits = bits | (1 << 0) if @passive
-              bits = bits | (1 << 1) if @durable
-              bits = bits | (1 << 2) if @exclusive
-              bits = bits | (1 << 3) if @auto_delete
-              bits = bits | (1 << 4) if @no_wait
-              io.write_byte(bits)
-              io.write_bytes @arguments, format
-            end
+            super
+            io.write_bytes @reserved1, format
+            io.write_bytes ShortString.new(@queue_name), format
+            bits = 0_u8
+            bits = bits | (1 << 0) if @passive
+            bits = bits | (1 << 1) if @durable
+            bits = bits | (1 << 2) if @exclusive
+            bits = bits | (1 << 3) if @auto_delete
+            bits = bits | (1 << 4) if @no_wait
+            io.write_byte(bits)
+            io.write_bytes @arguments, format
+            frame_end(io)
           end
 
           def self.from_io(channel, bytesize, io, format)
@@ -990,11 +997,11 @@ module AMQ
           end
 
           def to_io(io, format)
-            wrap(io, format) do
-              io.write_bytes ShortString.new(@queue_name), format
-              io.write_bytes @message_count, format
-              io.write_bytes @consumer_count, format
-            end
+            super
+            io.write_bytes ShortString.new(@queue_name), format
+            io.write_bytes @message_count, format
+            io.write_bytes @consumer_count, format
+            frame_end(io)
           end
 
           def self.from_io(channel, bytesize, io, format)
@@ -1019,19 +1026,19 @@ module AMQ
                          @exchange_name : String, @routing_key : String, @no_wait : Bool,
                          @arguments : Table, bytesize = nil)
             bytesize ||= 2 + 1 + @queue_name.bytesize + 1 + @exchange_name.bytesize + 1 +
-                         @routing_key.bytesize + 1 + @arguments.bytesize
+              @routing_key.bytesize + 1 + @arguments.bytesize
             super(channel, bytesize.to_u32)
           end
 
           def to_io(io, format)
-            wrap(io, format) do
-              io.write_bytes @reserved1, format
-              io.write_bytes ShortString.new(@queue_name), format
-              io.write_bytes ShortString.new(@exchange_name), format
-              io.write_bytes ShortString.new(@routing_key), format
-              io.write_byte @no_wait ? 1_u8 : 0_u8
-              io.write_bytes @arguments, format
-            end
+            super
+            io.write_bytes @reserved1, format
+            io.write_bytes ShortString.new(@queue_name), format
+            io.write_bytes ShortString.new(@exchange_name), format
+            io.write_bytes ShortString.new(@routing_key), format
+            io.write_byte @no_wait ? 1_u8 : 0_u8
+            io.write_bytes @arguments, format
+            frame_end(io)
           end
 
           def self.from_io(channel, bytesize, io, format)
@@ -1054,7 +1061,8 @@ module AMQ
           end
 
           def to_io(io, format)
-            wrap(io, format) { }
+            super
+            frame_end(io)
           end
 
           def self.from_io(channel, bytesize, io, format)
@@ -1079,15 +1087,15 @@ module AMQ
           end
 
           def to_io(io, format)
-            wrap(io, format) do
-              io.write_bytes @reserved1, format
-              io.write_bytes ShortString.new(@queue_name), format
-              bits = 0_u8
-              bits = bits | (1 << 0) if @if_unused
-              bits = bits | (1 << 1) if @if_empty
-              bits = bits | (1 << 2) if @no_wait
-              io.write_byte(bits)
-            end
+            super
+            io.write_bytes @reserved1, format
+            io.write_bytes ShortString.new(@queue_name), format
+            bits = 0_u8
+            bits = bits | (1 << 0) if @if_unused
+            bits = bits | (1 << 1) if @if_empty
+            bits = bits | (1 << 2) if @no_wait
+            io.write_byte(bits)
+            frame_end(io)
           end
 
           def self.from_io(channel, bytesize, io, format)
@@ -1115,9 +1123,9 @@ module AMQ
           end
 
           def to_io(io, format)
-            wrap(io, format) do
-              io.write_bytes @message_count, format
-            end
+            super
+            io.write_bytes @message_count, format
+            frame_end(io)
           end
 
           def self.from_io(channel, bytesize, io, format)
@@ -1139,18 +1147,18 @@ module AMQ
                          @exchange_name : String, @routing_key : String,
                          @arguments : Table, bytesize = nil)
             bytesize ||= 2 + 1 + @queue_name.bytesize + 1 + @exchange_name.bytesize + 1 +
-                         @routing_key.bytesize + @arguments.bytesize
+              @routing_key.bytesize + @arguments.bytesize
             super(channel, bytesize.to_u32)
           end
 
           def to_io(io, format)
-            wrap(io, format) do
-              io.write_bytes @reserved1, format
-              io.write_bytes ShortString.new(@queue_name), format
-              io.write_bytes ShortString.new(@exchange_name), format
-              io.write_bytes ShortString.new(@routing_key), format
-              io.write_bytes @arguments, format
-            end
+            super
+            io.write_bytes @reserved1, format
+            io.write_bytes ShortString.new(@queue_name), format
+            io.write_bytes ShortString.new(@exchange_name), format
+            io.write_bytes ShortString.new(@routing_key), format
+            io.write_bytes @arguments, format
+            frame_end(io)
           end
 
           def self.from_io(channel, bytesize, io, format)
@@ -1171,7 +1179,8 @@ module AMQ
           end
 
           def to_io(io, format)
-            wrap(io, format) { }
+            super
+            frame_end(io)
           end
 
           def self.from_io(channel, bytesize, io, format)
@@ -1195,11 +1204,11 @@ module AMQ
           end
 
           def to_io(io, format)
-            wrap(io, format) do
-              io.write_bytes @reserved1, format
-              io.write_bytes ShortString.new(@queue_name), format
-              io.write_byte @no_wait ? 1_u8 : 0_u8
-            end
+            super
+            io.write_bytes @reserved1, format
+            io.write_bytes ShortString.new(@queue_name), format
+            io.write_byte @no_wait ? 1_u8 : 0_u8
+            frame_end(io)
           end
 
           def self.from_io(channel, bytesize, io, format)
@@ -1225,9 +1234,9 @@ module AMQ
           end
 
           def to_io(io, format)
-            wrap(io, format) do
-              io.write_bytes @message_count, format
-            end
+            super
+            io.write_bytes @message_count, format
+            frame_end(io)
           end
 
           def self.from_io(channel, bytesize, io, format)
@@ -1287,15 +1296,15 @@ module AMQ
           end
 
           def to_io(io, format)
-            wrap(io, format) do
-              io.write_bytes @reserved1, format
-              io.write_bytes ShortString.new(@exchange), format
-              io.write_bytes ShortString.new(@routing_key), format
-              bits = 0_u8
-              bits = bits | (1 << 0) if @mandatory
-              bits = bits | (1 << 1) if @immediate
-              io.write_byte(bits)
-            end
+            super
+            io.write_bytes @reserved1, format
+            io.write_bytes ShortString.new(@exchange), format
+            io.write_bytes ShortString.new(@routing_key), format
+            bits = 0_u8
+            bits = bits | (1 << 0) if @mandatory
+            bits = bits | (1 << 1) if @immediate
+            io.write_byte(bits)
+            frame_end(io)
           end
 
           def self.from_io(channel, bytesize, io, format)
@@ -1322,18 +1331,18 @@ module AMQ
                          @redelivered : Bool, @exchange : String, @routing_key : String,
                          bytesize = nil)
             bytesize ||= 1 + @consumer_tag.bytesize + sizeof(UInt64) + 1 + 1 +
-                         @exchange.bytesize + 1 + @routing_key.bytesize
+              @exchange.bytesize + 1 + @routing_key.bytesize
             super(channel, bytesize.to_u32)
           end
 
           def to_io(io, format)
-            wrap(io, format) do
-              io.write_bytes ShortString.new(@consumer_tag), format
-              io.write_bytes @delivery_tag, format
-              io.write_byte @redelivered ? 1_u8 : 0_u8
-              io.write_bytes ShortString.new(@exchange), format
-              io.write_bytes ShortString.new(@routing_key), format
-            end
+            super
+            io.write_bytes ShortString.new(@consumer_tag), format
+            io.write_bytes @delivery_tag, format
+            io.write_byte @redelivered ? 1_u8 : 0_u8
+            io.write_bytes ShortString.new(@exchange), format
+            io.write_bytes ShortString.new(@routing_key), format
+            frame_end(io)
           end
 
           def self.from_io(channel, bytesize, io, format)
@@ -1362,11 +1371,11 @@ module AMQ
           end
 
           def to_io(io, format)
-            wrap(io, format) do
-              io.write_bytes @reserved1, format
-              io.write_bytes ShortString.new(@queue), format
-              io.write_byte @no_ack ? 1_u8 : 0_u8
-            end
+            super
+            io.write_bytes @reserved1, format
+            io.write_bytes ShortString.new(@queue), format
+            io.write_byte @no_ack ? 1_u8 : 0_u8
+            frame_end(io)
           end
 
           def self.from_io(channel, bytesize, io, format)
@@ -1390,18 +1399,18 @@ module AMQ
                          @exchange : String, @routing_key : String, @message_count : UInt32,
                          bytesize = nil)
             bytesize ||= sizeof(UInt64) + 1 + 1 + @exchange.bytesize + 1 +
-                         @routing_key.bytesize + sizeof(UInt32)
+              @routing_key.bytesize + sizeof(UInt32)
             super(channel, bytesize.to_u32)
           end
 
           def to_io(io, format)
-            wrap(io, format) do
-              io.write_bytes @delivery_tag, format
-              io.write_byte @redelivered ? 1_u8 : 0_u8
-              io.write_bytes ShortString.new(@exchange), format
-              io.write_bytes ShortString.new(@routing_key), format
-              io.write_bytes @message_count, format
-            end
+            super
+            io.write_bytes @delivery_tag, format
+            io.write_byte @redelivered ? 1_u8 : 0_u8
+            io.write_bytes ShortString.new(@exchange), format
+            io.write_bytes ShortString.new(@routing_key), format
+            io.write_bytes @message_count, format
+            frame_end(io)
           end
 
           def self.from_io(channel, bytesize, io, format)
@@ -1427,9 +1436,9 @@ module AMQ
           end
 
           def to_io(io, format)
-            wrap(io, format) do
-              io.write_bytes ShortString.new(@reserved1), format
-            end
+            super
+            io.write_bytes ShortString.new(@reserved1), format
+            frame_end(io)
           end
 
           def self.from_io(channel, bytesize, io, format)
@@ -1452,10 +1461,10 @@ module AMQ
           end
 
           def to_io(io, format)
-            wrap(io, format) do
-              io.write_bytes(@delivery_tag, format)
-              io.write_byte @multiple ? 1_u8 : 0_u8
-            end
+            super
+            io.write_bytes(@delivery_tag, format)
+            io.write_byte @multiple ? 1_u8 : 0_u8
+            frame_end(io)
           end
 
           def self.from_io(channel, bytesize, io, format)
@@ -1479,10 +1488,10 @@ module AMQ
           end
 
           def to_io(io, format)
-            wrap(io, format) do
-              io.write_bytes(@delivery_tag, format)
-              io.write_byte @requeue ? 1_u8 : 0_u8
-            end
+            super
+            io.write_bytes(@delivery_tag, format)
+            io.write_byte @requeue ? 1_u8 : 0_u8
+            frame_end(io)
           end
 
           def self.from_io(channel, bytesize, io, format)
@@ -1506,13 +1515,13 @@ module AMQ
           end
 
           def to_io(io, format)
-            wrap(io, format) do
-              io.write_bytes(@delivery_tag, format)
-              bits = 0_u8
-              bits = bits | (1 << 0) if @multiple
-              bits = bits | (1 << 1) if @requeue
-              io.write_byte(bits)
-            end
+            super
+            io.write_bytes(@delivery_tag, format)
+            bits = 0_u8
+            bits = bits | (1 << 0) if @multiple
+            bits = bits | (1 << 1) if @requeue
+            io.write_byte(bits)
+            frame_end(io)
           end
 
           def self.from_io(channel, bytesize, io, format)
@@ -1538,11 +1547,11 @@ module AMQ
           end
 
           def to_io(io, format)
-            wrap(io, format) do
-              io.write_bytes @prefetch_size, format
-              io.write_bytes @prefetch_count, format
-              io.write_byte @global ? 1_u8 : 0_u8
-            end
+            super
+            io.write_bytes @prefetch_size, format
+            io.write_bytes @prefetch_count, format
+            io.write_byte @global ? 1_u8 : 0_u8
+            frame_end(io)
           end
 
           def self.from_io(channel, bytesize, io, format)
@@ -1561,7 +1570,8 @@ module AMQ
           end
 
           def to_io(io, format)
-            wrap(io, format) { }
+            super
+            frame_end(io)
           end
 
           def self.from_io(channel, bytesize, io, format)
@@ -1583,23 +1593,23 @@ module AMQ
                          @no_local : Bool, @no_ack : Bool, @exclusive : Bool, @no_wait : Bool,
                          @arguments : Table, bytesize = nil)
             bytesize ||= 2 + 1 + @queue.bytesize + 1 + @consumer_tag.bytesize + 1 +
-                         @arguments.bytesize
+              @arguments.bytesize
             super(channel, bytesize.to_u32)
           end
 
           def to_io(io, format)
-            wrap(io, format) do
-              io.write_bytes @reserved1, format
-              io.write_bytes ShortString.new(@queue), format
-              io.write_bytes ShortString.new(@consumer_tag), format
-              bits = 0_u8
-              bits = bits | (1 << 0) if @no_local
-              bits = bits | (1 << 1) if @no_ack
-              bits = bits | (1 << 2) if @exclusive
-              bits = bits | (1 << 3) if @no_wait
-              io.write_byte(bits)
-              io.write_bytes @arguments, format
-            end
+            super
+            io.write_bytes @reserved1, format
+            io.write_bytes ShortString.new(@queue), format
+            io.write_bytes ShortString.new(@consumer_tag), format
+            bits = 0_u8
+            bits = bits | (1 << 0) if @no_local
+            bits = bits | (1 << 1) if @no_ack
+            bits = bits | (1 << 2) if @exclusive
+            bits = bits | (1 << 3) if @no_wait
+            io.write_byte(bits)
+            io.write_bytes @arguments, format
+            frame_end(io)
           end
 
           def self.from_io(channel, bytesize, io, format)
@@ -1631,9 +1641,9 @@ module AMQ
           end
 
           def to_io(io, format)
-            wrap(io, format) do
-              io.write_bytes ShortString.new(@consumer_tag), format
-            end
+            super
+            io.write_bytes ShortString.new(@consumer_tag), format
+            frame_end(io)
           end
 
           def self.from_io(channel, bytesize, io, format)
@@ -1655,17 +1665,17 @@ module AMQ
                          @exchange : String, @routing_key : String,
                          bytesize = nil)
             bytesize ||= 2 + 1 + @reply_text.bytesize + 1 + @exchange.bytesize + 1 +
-                         @routing_key.bytesize
+              @routing_key.bytesize
             super(channel, bytesize.to_u32)
           end
 
           def to_io(io, format)
-            wrap(io, format) do
-              io.write_bytes(@reply_code, format)
-              io.write_bytes ShortString.new(@reply_text), format
-              io.write_bytes ShortString.new(@exchange), format
-              io.write_bytes ShortString.new(@routing_key), format
-            end
+            super
+            io.write_bytes(@reply_code, format)
+            io.write_bytes ShortString.new(@reply_text), format
+            io.write_bytes ShortString.new(@exchange), format
+            io.write_bytes ShortString.new(@routing_key), format
+            frame_end(io)
           end
 
           def self.from_io(channel, bytesize, io, format)
@@ -1692,10 +1702,10 @@ module AMQ
           end
 
           def to_io(io, format)
-            wrap(io, format) do
-              io.write_bytes ShortString.new(@consumer_tag), format
-              io.write_byte @no_wait ? 1_u8 : 0_u8
-            end
+            super
+            io.write_bytes ShortString.new(@consumer_tag), format
+            io.write_byte @no_wait ? 1_u8 : 0_u8
+            frame_end(io)
           end
 
           def self.from_io(channel, bytesize, io, format)
@@ -1720,9 +1730,9 @@ module AMQ
           end
 
           def to_io(io, format)
-            wrap(io, format) do
-              io.write_bytes ShortString.new(@consumer_tag), format
-            end
+            super
+            io.write_bytes ShortString.new(@consumer_tag), format
+            frame_end(io)
           end
 
           def self.from_io(channel, bytesize, io, format)
@@ -1745,9 +1755,9 @@ module AMQ
           end
 
           def to_io(io, format)
-            wrap(io, format) do
-              io.write_byte @requeue ? 1_u8 : 0_u8
-            end
+            super
+            io.write_byte @requeue ? 1_u8 : 0_u8
+            frame_end(io)
           end
 
           def self.from_io(channel, bytesize, io, format)
@@ -1764,7 +1774,8 @@ module AMQ
           end
 
           def to_io(io, format)
-            wrap(io, format) { }
+            super
+            frame_end(io)
           end
 
           def self.from_io(channel, bytesize, io, format)
@@ -1808,9 +1819,9 @@ module AMQ
           end
 
           def to_io(io, format)
-            wrap(io, format) do
-              io.write_byte @no_wait ? 1_u8 : 0_u8
-            end
+            super
+            io.write_byte @no_wait ? 1_u8 : 0_u8
+            frame_end(io)
           end
         end
 
@@ -1822,7 +1833,8 @@ module AMQ
           end
 
           def to_io(io, format)
-            wrap(io, format) { }
+            super
+            frame_end(io)
           end
 
           def self.from_io(channel, bytesize, io, format)
