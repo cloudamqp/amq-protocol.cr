@@ -207,6 +207,24 @@ module AMQ
         io.seek(io.read_byte.to_i, ::IO::Seek::Current) if flags & FLAG_RESERVED1 > 0
       end
 
+      def self.skip(io)
+        flags = io.read_bytes UInt16, IO::ByteFormat::NetworkEndian
+        io.skip(io.read_byte || raise IO::EOFError.new) if flags & FLAG_CONTENT_TYPE > 0
+        io.skip(io.read_byte || raise IO::EOFError.new) if flags & FLAG_CONTENT_ENCODING > 0
+        io.skip(sizeof(UInt32)) if flags & FLAG_HEADERS > 0
+        io.skip(1) if flags & FLAG_DELIVERY_MODE > 0
+        io.skip(1) if flags & FLAG_PRIORITY > 0
+        io.skip(io.read_byte || raise IO::EOFError.new) if flags & FLAG_CORRELATION_ID > 0
+        io.skip(io.read_byte || raise IO::EOFError.new) if flags & FLAG_REPLY_TO > 0
+        io.skip(io.read_byte || raise IO::EOFError.new) if flags & FLAG_EXPIRATION > 0
+        io.skip(io.read_byte || raise IO::EOFError.new) if flags & FLAG_MESSAGE_ID > 0
+        io.skip(sizeof(Int64)) if flags & FLAG_TIMESTAMP > 0
+        io.skip(io.read_byte || raise IO::EOFError.new) if flags & FLAG_TYPE > 0
+        io.skip(io.read_byte || raise IO::EOFError.new) if flags & FLAG_USER_ID > 0
+        io.skip(io.read_byte || raise IO::EOFError.new) if flags & FLAG_APP_ID > 0
+        io.skip(io.read_byte || raise IO::EOFError.new) if flags & FLAG_RESERVED1 > 0
+      end
+
       def clone
         Properties.new(
           @content_type.clone,
