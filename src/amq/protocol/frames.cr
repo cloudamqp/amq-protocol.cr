@@ -49,7 +49,7 @@ module AMQ
       struct Header < Frame
         TYPE = 2_u8
 
-        def type
+        def type : UInt8
           TYPE
         end
 
@@ -82,7 +82,7 @@ module AMQ
       struct Body < Frame
         TYPE = 3_u8
 
-        def type
+        def type : UInt8
           TYPE
         end
 
@@ -105,7 +105,7 @@ module AMQ
       struct Heartbeat < Frame
         TYPE = 8_u8
 
-        def type
+        def type : UInt8
           TYPE
         end
 
@@ -124,7 +124,7 @@ module AMQ
       abstract struct Method < Frame
         TYPE = 1_u8
 
-        def type
+        def type : UInt8
           TYPE
         end
 
@@ -163,7 +163,7 @@ module AMQ
       abstract struct Connection < Method
         CLASS_ID = 10_u16
 
-        def class_id
+        def class_id : UInt16
           CLASS_ID
         end
 
@@ -192,7 +192,7 @@ module AMQ
         struct Start < Connection
           METHOD_ID = 10_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -243,7 +243,7 @@ module AMQ
 
           METHOD_ID = 11_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -276,7 +276,7 @@ module AMQ
           getter channel_max, frame_max, heartbeat
           METHOD_ID = 30_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -304,7 +304,7 @@ module AMQ
           getter channel_max, frame_max, heartbeat
           METHOD_ID = 31_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -332,7 +332,7 @@ module AMQ
           getter vhost, reserved1, reserved2
           METHOD_ID = 40_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -362,7 +362,7 @@ module AMQ
 
           METHOD_ID = 41_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -388,7 +388,7 @@ module AMQ
 
           METHOD_ID = 50_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -419,7 +419,7 @@ module AMQ
         struct CloseOk < Connection
           METHOD_ID = 51_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -435,7 +435,7 @@ module AMQ
         struct Blocked < Connection
           METHOD_ID = 60_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -461,7 +461,7 @@ module AMQ
         struct Unblocked < Connection
           METHOD_ID = 61_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -478,7 +478,7 @@ module AMQ
       abstract struct Channel < Method
         CLASS_ID = 20_u16
 
-        def class_id
+        def class_id : UInt16
           CLASS_ID
         end
 
@@ -499,7 +499,7 @@ module AMQ
         struct Open < Channel
           METHOD_ID = 10_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -525,7 +525,7 @@ module AMQ
         struct OpenOk < Channel
           METHOD_ID = 11_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -551,7 +551,7 @@ module AMQ
         struct Flow < Channel
           METHOD_ID = 20_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -576,7 +576,7 @@ module AMQ
         struct FlowOk < Channel
           METHOD_ID = 21_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -601,7 +601,7 @@ module AMQ
         struct Close < Channel
           METHOD_ID = 40_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -634,7 +634,7 @@ module AMQ
         struct CloseOk < Channel
           METHOD_ID = 41_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -651,7 +651,7 @@ module AMQ
       abstract struct Exchange < Method
         CLASS_ID = 40_u16
 
-        def class_id
+        def class_id : UInt16
           CLASS_ID
         end
 
@@ -674,7 +674,7 @@ module AMQ
         struct Declare < Exchange
           METHOD_ID = 10_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -723,7 +723,7 @@ module AMQ
         struct DeclareOk < Exchange
           METHOD_ID = 11_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -739,7 +739,7 @@ module AMQ
         struct Delete < Exchange
           METHOD_ID = 20_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -775,7 +775,7 @@ module AMQ
         struct DeleteOk < Exchange
           METHOD_ID = 21_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -791,7 +791,7 @@ module AMQ
         struct Bind < Exchange
           METHOD_ID = 30_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -832,7 +832,7 @@ module AMQ
         struct BindOk < Exchange
           METHOD_ID = 31_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -848,7 +848,7 @@ module AMQ
         struct Unbind < Exchange
           METHOD_ID = 40_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -888,7 +888,7 @@ module AMQ
         struct UnbindOk < Exchange
           METHOD_ID = 51_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -905,7 +905,7 @@ module AMQ
       abstract struct Queue < Method
         CLASS_ID = 50_u16
 
-        def class_id
+        def class_id : UInt16
           CLASS_ID
         end
 
@@ -930,7 +930,7 @@ module AMQ
         struct Declare < Queue
           METHOD_ID = 10_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -977,7 +977,7 @@ module AMQ
         struct DeclareOk < Queue
           METHOD_ID = 11_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -1008,7 +1008,7 @@ module AMQ
         struct Bind < Queue
           METHOD_ID = 20_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -1049,7 +1049,7 @@ module AMQ
         struct BindOk < Queue
           METHOD_ID = 21_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -1065,7 +1065,7 @@ module AMQ
         struct Delete < Queue
           METHOD_ID = 40_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -1104,7 +1104,7 @@ module AMQ
         struct DeleteOk < Queue
           METHOD_ID = 41_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -1129,7 +1129,7 @@ module AMQ
         struct Unbind < Queue
           METHOD_ID = 50_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -1166,7 +1166,7 @@ module AMQ
         struct UnbindOk < Queue
           METHOD_ID = 51_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -1182,7 +1182,7 @@ module AMQ
         struct Purge < Queue
           METHOD_ID = 30_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -1214,7 +1214,7 @@ module AMQ
         struct PurgeOk < Queue
           METHOD_ID = 31_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -1240,7 +1240,7 @@ module AMQ
       abstract struct Basic < Method
         CLASS_ID = 60_u16
 
-        def class_id
+        def class_id : UInt16
           CLASS_ID
         end
 
@@ -1273,7 +1273,7 @@ module AMQ
         struct Publish < Basic
           METHOD_ID = 40_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -1312,7 +1312,7 @@ module AMQ
         struct Deliver < Basic
           METHOD_ID = 60_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -1349,7 +1349,7 @@ module AMQ
         struct Get < Basic
           METHOD_ID = 70_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -1380,7 +1380,7 @@ module AMQ
         struct GetOk < Basic
           METHOD_ID = 71_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -1417,7 +1417,7 @@ module AMQ
         struct GetEmpty < Basic
           METHOD_ID = 72_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -1441,7 +1441,7 @@ module AMQ
         struct Ack < Basic
           METHOD_ID = 80_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -1468,7 +1468,7 @@ module AMQ
         struct Reject < Basic
           METHOD_ID = 90_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -1495,7 +1495,7 @@ module AMQ
         struct Nack < Basic
           METHOD_ID = 120_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -1527,7 +1527,7 @@ module AMQ
         struct Qos < Basic
           METHOD_ID = 10_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -1556,7 +1556,7 @@ module AMQ
         struct QosOk < Basic
           METHOD_ID = 11_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -1572,7 +1572,7 @@ module AMQ
         struct Consume < Basic
           METHOD_ID = 20_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -1619,7 +1619,7 @@ module AMQ
         struct ConsumeOk < Basic
           METHOD_ID = 21_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -1645,7 +1645,7 @@ module AMQ
         struct Return < Basic
           METHOD_ID = 50_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -1680,7 +1680,7 @@ module AMQ
         struct Cancel < Basic
           METHOD_ID = 30_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -1708,7 +1708,7 @@ module AMQ
         struct CancelOk < Basic
           METHOD_ID = 31_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -1734,7 +1734,7 @@ module AMQ
         struct Recover < Basic
           METHOD_ID = 110_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -1759,7 +1759,7 @@ module AMQ
         struct RecoverOk < Basic
           METHOD_ID = 111_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -1776,7 +1776,7 @@ module AMQ
       abstract struct Confirm < Method
         CLASS_ID = 85_u16
 
-        def class_id
+        def class_id : UInt16
           CLASS_ID
         end
 
@@ -1793,7 +1793,7 @@ module AMQ
         struct Select < Confirm
           METHOD_ID = 10_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -1817,7 +1817,7 @@ module AMQ
         struct SelectOk < Confirm
           METHOD_ID = 11_u16
 
-          def method_id
+          def method_id : UInt16
             METHOD_ID
           end
 
@@ -1834,7 +1834,7 @@ module AMQ
       abstract struct Tx < Method
         CLASS_ID = 90_u16
 
-        def class_id
+        def class_id : UInt16
           CLASS_ID
         end
 
