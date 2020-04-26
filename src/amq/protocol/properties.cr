@@ -189,29 +189,11 @@ module AMQ
         size
       end
 
-      def self.seek_past(io)
-        flags = io.read_uint16
-        io.seek(io.read_byte.to_i, ::IO::Seek::Current) if flags & FLAG_CONTENT_TYPE > 0
-        io.seek(io.read_byte.to_i, ::IO::Seek::Current) if flags & FLAG_CONTENT_ENCODING > 0
-        io.seek(io.read_uint32.to_i, ::IO::Seek::Current) if flags & FLAG_HEADERS > 0
-        io.seek(1, ::IO::Seek::Current) if flags & FLAG_DELIVERY_MODE > 0
-        io.seek(1, ::IO::Seek::Current) if flags & FLAG_PRIORITY > 0
-        io.seek(io.read_byte.to_i, ::IO::Seek::Current) if flags & FLAG_CORRELATION_ID > 0
-        io.seek(io.read_byte.to_i, ::IO::Seek::Current) if flags & FLAG_REPLY_TO > 0
-        io.seek(io.read_byte.to_i, ::IO::Seek::Current) if flags & FLAG_EXPIRATION > 0
-        io.seek(io.read_byte.to_i, ::IO::Seek::Current) if flags & FLAG_MESSAGE_ID > 0
-        io.seek(4, ::IO::Seek::Current) if flags & FLAG_TIMESTAMP > 0
-        io.seek(io.read_byte.to_i, ::IO::Seek::Current) if flags & FLAG_TYPE > 0
-        io.seek(io.read_byte.to_i, ::IO::Seek::Current) if flags & FLAG_USER_ID > 0
-        io.seek(io.read_byte.to_i, ::IO::Seek::Current) if flags & FLAG_APP_ID > 0
-        io.seek(io.read_byte.to_i, ::IO::Seek::Current) if flags & FLAG_RESERVED1 > 0
-      end
-
-      def self.skip(io)
-        flags = io.read_bytes UInt16, IO::ByteFormat::NetworkEndian
+      def self.skip(io, format = IO::ByteFormat::NetworkEndian)
+        flags = io.read_bytes UInt16, format
         io.skip(io.read_byte || raise IO::EOFError.new) if flags & FLAG_CONTENT_TYPE > 0
         io.skip(io.read_byte || raise IO::EOFError.new) if flags & FLAG_CONTENT_ENCODING > 0
-        io.skip(sizeof(UInt32)) if flags & FLAG_HEADERS > 0
+        io.skip(UInt32.from_io(io, format)) if flags & FLAG_HEADERS > 0
         io.skip(1) if flags & FLAG_DELIVERY_MODE > 0
         io.skip(1) if flags & FLAG_PRIORITY > 0
         io.skip(io.read_byte || raise IO::EOFError.new) if flags & FLAG_CORRELATION_ID > 0

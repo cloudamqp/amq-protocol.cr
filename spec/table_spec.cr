@@ -27,12 +27,12 @@ describe AMQ::Protocol::Table do
         # 0.0_f64,
         "a" * 257,
         "aaaa".to_slice,
-        Time.unix(Time.utc_now.to_unix),
+        Time.unix(Time.utc.to_unix),
         Hash(String, AMQ::Protocol::Field){"key" => "value"},
         nil,
       ] of AMQ::Protocol::Field,
       "byte_array" => "aaaa".to_slice,
-      "time"       => Time.unix(Time.utc_now.to_unix),
+      "time"       => Time.unix(Time.utc.to_unix),
       "hash"       => Hash(String, AMQ::Protocol::Field){"key" => "value"},
       "nil"        => nil,
     }
@@ -60,5 +60,3 @@ describe AMQ::Protocol::Table do
     tbl2.bytesize.should eq(sizeof(UInt32) + 1 + "key".bytesize + 1 + sizeof(Int32))
   end
 end
-
-
