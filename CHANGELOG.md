@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.9] - 2020-04-28
+
+### Fixed
+- Properties.skip didn't skip the length byte(s)
+
 ## [0.3.8] - 2020-04-26
 
 ### Fixed
