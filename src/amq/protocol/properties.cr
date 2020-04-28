@@ -189,22 +189,77 @@ module AMQ
         size
       end
 
-      def self.skip(io, format = IO::ByteFormat::NetworkEndian)
+      def self.skip(io, format = IO::ByteFormat::NetworkEndian) : Int
         flags = io.read_bytes UInt16, format
-        io.skip(io.read_byte || raise IO::EOFError.new) if flags & FLAG_CONTENT_TYPE > 0
-        io.skip(io.read_byte || raise IO::EOFError.new) if flags & FLAG_CONTENT_ENCODING > 0
-        io.skip(UInt32.from_io(io, format)) if flags & FLAG_HEADERS > 0
-        io.skip(1) if flags & FLAG_DELIVERY_MODE > 0
-        io.skip(1) if flags & FLAG_PRIORITY > 0
-        io.skip(io.read_byte || raise IO::EOFError.new) if flags & FLAG_CORRELATION_ID > 0
-        io.skip(io.read_byte || raise IO::EOFError.new) if flags & FLAG_REPLY_TO > 0
-        io.skip(io.read_byte || raise IO::EOFError.new) if flags & FLAG_EXPIRATION > 0
-        io.skip(io.read_byte || raise IO::EOFError.new) if flags & FLAG_MESSAGE_ID > 0
-        io.skip(sizeof(Int64)) if flags & FLAG_TIMESTAMP > 0
-        io.skip(io.read_byte || raise IO::EOFError.new) if flags & FLAG_TYPE > 0
-        io.skip(io.read_byte || raise IO::EOFError.new) if flags & FLAG_USER_ID > 0
-        io.skip(io.read_byte || raise IO::EOFError.new) if flags & FLAG_APP_ID > 0
-        io.skip(io.read_byte || raise IO::EOFError.new) if flags & FLAG_RESERVED1 > 0
+        skipped = sizeof(UInt16)
+        if flags & FLAG_CONTENT_TYPE > 0
+          len = io.read_byte || raise IO::EOFError.new
+          io.skip(len)
+          skipped += 1 + len
+        end
+        if flags & FLAG_CONTENT_ENCODING > 0
+          len = io.read_byte || raise IO::EOFError.new
+          io.skip(len)
+          skipped += 1 + len
+        end
+        if flags & FLAG_HEADERS > 0
+          len = UInt32.from_io(io, format)
+          io.skip(len)
+          skipped += sizeof(UInt32) + len
+        end
+        if flags & FLAG_DELIVERY_MODE > 0
+          io.skip(1)
+          skipped += 1
+        end
+        if flags & FLAG_PRIORITY > 0
+          io.skip(1)
+          skipped += 1
+        end
+        if flags & FLAG_CORRELATION_ID > 0
+          len = io.read_byte || raise IO::EOFError.new
+          io.skip(len)
+          skipped += 1 + len
+        end
+        if flags & FLAG_REPLY_TO > 0
+          len = io.read_byte || raise IO::EOFError.new
+          io.skip(len)
+          skipped += 1 + len
+        end
+        if flags & FLAG_EXPIRATION > 0
+          len = io.read_byte || raise IO::EOFError.new
+          io.skip(len)
+          skipped += 1 + len
+        end
+        if flags & FLAG_MESSAGE_ID > 0
+          len = io.read_byte || raise IO::EOFError.new
+          io.skip(len)
+          skipped += 1 + len
+        end
+        if flags & FLAG_TIMESTAMP > 0
+          io.skip(sizeof(Int64))
+          skipped += sizeof(Int64)
+        end
+        if flags & FLAG_TYPE > 0
+          len = io.read_byte || raise IO::EOFError.new
+          io.skip(len)
+          skipped += 1 + len
+        end
+        if flags & FLAG_USER_ID > 0
+          len = io.read_byte || raise IO::EOFError.new
+          io.skip(len)
+          skipped += 1 + len
+        end
+        if flags & FLAG_APP_ID > 0
+          len = io.read_byte || raise IO::EOFError.new
+          io.skip(len)
+          skipped += 1 + len
+        end
+        if flags & FLAG_RESERVED1 > 0
+          len = io.read_byte || raise IO::EOFError.new
+          io.skip(len)
+          skipped += 1 + len
+        end
+        skipped
       end
 
       def clone
