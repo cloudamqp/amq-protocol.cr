@@ -189,7 +189,7 @@ module AMQ
         size
       end
 
-      def self.skip(io, format = IO::ByteFormat::NetworkEndian) : Int
+      def self.skip(io, format) : Int
         flags = io.read_bytes UInt16, format
         skipped = sizeof(UInt16)
         if flags & FLAG_CONTENT_TYPE > 0
