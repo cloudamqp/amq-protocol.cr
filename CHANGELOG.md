@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.10] - 2020-05-29
+
+### Changed
+- Internal byteformat of Table is always NetworkEndian, but allow prefix size to be in any format
+- No default byteformat for Properties.skip
+
 ## [0.3.9] - 2020-04-28
 
 ### Fixed
