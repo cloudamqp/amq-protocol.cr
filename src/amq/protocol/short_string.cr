@@ -14,7 +14,7 @@ module AMQ
         io.write(@str.to_slice)
       end
 
-      def self.from_io(io, format) : String
+      def self.from_io(io, format = nil) : String
         sz = io.read_byte || raise IO::EOFError.new("Can't read short string")
         buf = uninitialized UInt8[256]
         io.read_fully(buf.to_slice[0, sz])
