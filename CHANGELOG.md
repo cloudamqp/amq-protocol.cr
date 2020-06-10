@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.11] - 2020-06-10
+
+### Fixed
+- Crystal 0.35 compability
+
 ## [0.3.10] - 2020-05-29
 
 ### Changed
