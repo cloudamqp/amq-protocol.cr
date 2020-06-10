@@ -223,7 +223,7 @@ module AMQ
         end
       end
 
-      private def skip_field : Int32
+      private def skip_field : Int64
         type = @io.read_byte
         case type
         when 't' then @io.skip(sizeof(UInt8))

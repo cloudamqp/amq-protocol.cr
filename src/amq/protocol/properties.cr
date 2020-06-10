@@ -135,7 +135,9 @@ module AMQ
         }.compact.to_json(json)
       end
 
-      def to_io(io, format)
+      def to_io(io, format) : Int64
+        bytes = 0_i64
+
         flags = 0_u16
         flags = flags | FLAG_CONTENT_TYPE if @content_type
         flags = flags | FLAG_CONTENT_ENCODING if @content_encoding
@@ -152,22 +154,23 @@ module AMQ
         flags = flags | FLAG_APP_ID if @app_id
         flags = flags | FLAG_RESERVED1 if @reserved1
 
-        io.write_bytes(flags, format)
+        bytes += io.write_bytes(flags, format)
 
-        io.write_bytes ShortString.new(@content_type.not_nil!), format if @content_type
-        io.write_bytes ShortString.new(@content_encoding.not_nil!), format if @content_encoding
-        io.write_bytes @headers.not_nil!, format if @headers
-        io.write_byte @delivery_mode.not_nil! if @delivery_mode
-        io.write_byte @priority.not_nil! if @priority
-        io.write_bytes ShortString.new(@correlation_id.not_nil!), format if @correlation_id
-        io.write_bytes ShortString.new(@reply_to.not_nil!), format if @reply_to
-        io.write_bytes ShortString.new(@expiration.not_nil!), format if @expiration
-        io.write_bytes ShortString.new(@message_id.not_nil!), format if @message_id
-        io.write_bytes @timestamp.not_nil!.to_unix.to_i64, format if @timestamp
-        io.write_bytes ShortString.new(@type.not_nil!), format if @type
-        io.write_bytes ShortString.new(@user_id.not_nil!), format if @user_id
-        io.write_bytes ShortString.new(@app_id.not_nil!), format if @app_id
-        io.write_bytes ShortString.new(@reserved1.not_nil!), format if @reserved1
+        bytes += io.write_bytes ShortString.new(@content_type.not_nil!), format if @content_type
+        bytes += io.write_bytes ShortString.new(@content_encoding.not_nil!), format if @content_encoding
+        bytes += io.write_bytes @headers.not_nil!, format if @headers
+        bytes += io.write_byte @delivery_mode.not_nil! if @delivery_mode
+        bytes += io.write_byte @priority.not_nil! if @priority
+        bytes += io.write_bytes ShortString.new(@correlation_id.not_nil!), format if @correlation_id
+        bytes += io.write_bytes ShortString.new(@reply_to.not_nil!), format if @reply_to
+        bytes += io.write_bytes ShortString.new(@expiration.not_nil!), format if @expiration
+        bytes += io.write_bytes ShortString.new(@message_id.not_nil!), format if @message_id
+        bytes += io.write_bytes @timestamp.not_nil!.to_unix.to_i64, format if @timestamp
+        bytes += io.write_bytes ShortString.new(@type.not_nil!), format if @type
+        bytes += io.write_bytes ShortString.new(@user_id.not_nil!), format if @user_id
+        bytes += io.write_bytes ShortString.new(@app_id.not_nil!), format if @app_id
+        bytes += io.write_bytes ShortString.new(@reserved1.not_nil!), format if @reserved1
+        bytes
       end
 
       def bytesize
@@ -189,9 +192,9 @@ module AMQ
         size
       end
 
-      def self.skip(io, format) : Int
+      def self.skip(io, format) : Int64
         flags = io.read_bytes UInt16, format
-        skipped = sizeof(UInt16)
+        skipped = sizeof(UInt16).to_i64
         if flags & FLAG_CONTENT_TYPE > 0
           len = io.read_byte || raise IO::EOFError.new
           io.skip(len)

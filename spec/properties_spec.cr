@@ -21,7 +21,7 @@ describe AMQ::Protocol::Properties do
     io.write_bytes props, IO::ByteFormat::NetworkEndian
     end_pos = io.pos
     io.rewind
-    AMQ::Protocol::Properties.skip(io)
+    AMQ::Protocol::Properties.skip(io, IO::ByteFormat::NetworkEndian)
     io.pos.should eq end_pos
   end
 end
