@@ -6,6 +6,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Frame#to_io returns number of bytes written
+
 ## [0.3.11] - 2020-06-10
 
 ### Fixed
