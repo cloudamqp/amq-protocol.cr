@@ -4,10 +4,10 @@ module AMQ
       def initialize(@str : String)
       end
 
-      def to_io(io, format)
+      def to_io(io, format) : Int64
         raise ArgumentError.new("Long string is too long, max #{UInt32::MAX}") if @str.bytesize > UInt32::MAX
         io.write_bytes(@str.bytesize.to_u32, format)
-        io.write(@str.to_slice)
+        io.write(@str.to_slice) + sizeof(UInt32)
       end
 
       def self.from_io(io, format) : String

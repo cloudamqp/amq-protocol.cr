@@ -8,10 +8,10 @@ module AMQ
       def initialize(@str : String)
       end
 
-      def to_io(io, format = nil)
+      def to_io(io, format = nil) : Int64
         raise ArgumentError.new("Short string too long, max #{UInt8::MAX}") if @str.bytesize > UInt8::MAX
         io.write_byte(@str.bytesize.to_u8)
-        io.write(@str.to_slice)
+        io.write(@str.to_slice) + sizeof(UInt8)
       end
 
       def self.from_io(io, format = nil) : String

@@ -141,10 +141,10 @@ module AMQ
         nil
       end
 
-      def to_io(io, format)
+      def to_io(io, format) : Int64
         io.write_bytes(@io.bytesize.to_u32, format)
         @io.rewind
-        IO.copy(@io, io, @io.bytesize)
+        IO.copy(@io, io, @io.bytesize) + sizeof(UInt32)
       end
 
       def self.from_io(io, format, size : UInt32? = nil) : self
