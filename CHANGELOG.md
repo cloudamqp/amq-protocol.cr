@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.13] - 2020-06-21
+
+### Changed
+- Crystal 0.35.1 compability, don't return bytes on to_io
+
 ## [0.3.12] - 2020-06-11
 
 ### Changed

@@ -141,10 +141,10 @@ module AMQ
         nil
       end
 
-      def to_io(io, format) : Int64
+      def to_io(io, format) : Nil
         io.write_bytes(@io.bytesize.to_u32, format)
         @io.rewind
-        IO.copy(@io, io, @io.bytesize) + sizeof(UInt32)
+        IO.copy(@io, io, @io.bytesize)
       end
 
       def self.from_io(io, format, size : UInt32? = nil) : self
@@ -223,7 +223,7 @@ module AMQ
         end
       end
 
-      private def skip_field : Int64
+      private def skip_field
         type = @io.read_byte
         case type
         when 't' then @io.skip(sizeof(UInt8))
