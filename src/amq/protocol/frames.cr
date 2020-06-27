@@ -102,6 +102,26 @@ module AMQ
         end
       end
 
+      struct BytesBody < Frame
+        TYPE = 3_u8
+
+        def type : UInt8
+          TYPE
+        end
+
+        getter body_size, body
+
+        def initialize(channel : UInt16, @body_size : UInt32, @body : Bytes)
+          super(channel, @body_size)
+        end
+
+        def to_io(io, format)
+          wrap(io, format) do
+            io.write @body
+          end
+        end
+      end
+
       struct Heartbeat < Frame
         TYPE = 8_u8
 
