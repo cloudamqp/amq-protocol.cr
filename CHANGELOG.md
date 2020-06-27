@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.14] - 2020-06-27
+
+### Changed
+- BytesBody where the body is a slice of bytes instead of an IO object
+
 ## [0.3.13] - 2020-06-21
 
 ### Changed
