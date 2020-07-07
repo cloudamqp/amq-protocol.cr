@@ -1,7 +1,7 @@
 module AMQ
   module Protocol
     struct Table
-      ByteFormat = IO::ByteFormat::NetworkEndian
+      BYTEFORMAT = IO::ByteFormat::NetworkEndian
 
       def initialize(hash : Hash(String, Field)?, @io = IO::Memory.new)
         hash.each do |key, value|
@@ -56,7 +56,7 @@ module AMQ
           v = read_field
           return true if yield(k, v)
         end
-        return false
+        false
       end
 
       def all?(&blk : String, Field -> _) : Bool
@@ -66,7 +66,7 @@ module AMQ
           v = read_field
           return false unless yield(k, v)
         end
-        return true
+        true
       end
 
       def empty?
@@ -165,58 +165,58 @@ module AMQ
           @io.write_byte(value ? 1_u8 : 0_u8)
         when Int8
           @io.write_byte 'b'.ord.to_u8
-          @io.write_bytes(value, ByteFormat)
+          @io.write_bytes(value, BYTEFORMAT)
         when UInt8
           @io.write_byte 'B'.ord.to_u8
           @io.write_byte(value)
         when Int16
           @io.write_byte 's'.ord.to_u8
-          @io.write_bytes(value, ByteFormat)
+          @io.write_bytes(value, BYTEFORMAT)
         when UInt16
           @io.write_byte 'u'.ord.to_u8
-          @io.write_bytes(value, ByteFormat)
+          @io.write_bytes(value, BYTEFORMAT)
         when Int32
           @io.write_byte 'I'.ord.to_u8
-          @io.write_bytes(value, ByteFormat)
+          @io.write_bytes(value, BYTEFORMAT)
         when UInt32
           @io.write_byte 'i'.ord.to_u8
-          @io.write_bytes(value, ByteFormat)
+          @io.write_bytes(value, BYTEFORMAT)
         when Int64
           @io.write_byte 'l'.ord.to_u8
-          @io.write_bytes(value, ByteFormat)
+          @io.write_bytes(value, BYTEFORMAT)
         when Float32
           @io.write_byte 'f'.ord.to_u8
-          @io.write_bytes(value, ByteFormat)
+          @io.write_bytes(value, BYTEFORMAT)
         when Float64
           @io.write_byte 'd'.ord.to_u8
-          @io.write_bytes(value, ByteFormat)
+          @io.write_bytes(value, BYTEFORMAT)
         when String
           @io.write_byte 'S'.ord.to_u8
-          @io.write_bytes LongString.new(value), ByteFormat
+          @io.write_bytes LongString.new(value), BYTEFORMAT
         when Bytes
           @io.write_byte 'x'.ord.to_u8
-          @io.write_bytes(value.bytesize.to_u32, ByteFormat)
+          @io.write_bytes(value.bytesize.to_u32, BYTEFORMAT)
           @io.write value
         when Array
           @io.write_byte 'A'.ord.to_u8
           length_pos = @io.pos
-          @io.write_bytes(0_u32, ByteFormat)
+          @io.write_bytes(0_u32, BYTEFORMAT)
           start_pos = @io.pos
           value.each { |v| write_field(v) }
           end_pos = @io.pos
           @io.seek length_pos
           array_bytesize = end_pos - start_pos
-          @io.write_bytes(array_bytesize.to_u32, ByteFormat)
+          @io.write_bytes(array_bytesize.to_u32, BYTEFORMAT)
           @io.seek end_pos
         when Time
           @io.write_byte 'T'.ord.to_u8
-          @io.write_bytes(value.to_unix.to_i64, ByteFormat)
+          @io.write_bytes(value.to_unix.to_i64, BYTEFORMAT)
         when Table
           @io.write_byte 'F'.ord.to_u8
-          @io.write_bytes value, ByteFormat
+          @io.write_bytes value, BYTEFORMAT
         when Hash(String, Field)
           @io.write_byte 'F'.ord.to_u8
-          @io.write_bytes Table.new(value), ByteFormat
+          @io.write_bytes Table.new(value), BYTEFORMAT
         when Nil
           @io.write_byte 'V'.ord.to_u8
         else raise Error.new "Unsupported Field type: #{value.class}"
@@ -236,13 +236,13 @@ module AMQ
         when 'l' then @io.skip(sizeof(Int64))
         when 'f' then @io.skip(sizeof(Float32))
         when 'd' then @io.skip(sizeof(Float64))
-        when 'S' then @io.skip(UInt32.from_io(@io, ByteFormat))
-        when 'x' then @io.skip(UInt32.from_io(@io, ByteFormat))
-        when 'A' then @io.skip(UInt32.from_io(@io, ByteFormat))
+        when 'S' then @io.skip(UInt32.from_io(@io, BYTEFORMAT))
+        when 'x' then @io.skip(UInt32.from_io(@io, BYTEFORMAT))
+        when 'A' then @io.skip(UInt32.from_io(@io, BYTEFORMAT))
         when 'T' then @io.skip(sizeof(Int64))
-        when 'F' then @io.skip(UInt32.from_io(@io, ByteFormat))
+        when 'F' then @io.skip(UInt32.from_io(@io, BYTEFORMAT))
         when 'V' then @io.skip(0)
-        else raise Error.new "Unknown field type '#{type}'"
+        else          raise Error.new "Unknown field type '#{type}'"
         end
       end
 
@@ -250,27 +250,27 @@ module AMQ
         type = @io.read_byte
         case type
         when 't' then @io.read_byte == 1_u8
-        when 'b' then Int8.from_io(@io, ByteFormat)
-        when 'B' then UInt8.from_io(@io, ByteFormat)
-        when 's' then Int16.from_io(@io, ByteFormat)
-        when 'u' then UInt16.from_io(@io, ByteFormat)
-        when 'I' then Int32.from_io(@io, ByteFormat)
-        when 'i' then UInt32.from_io(@io, ByteFormat)
-        when 'l' then Int64.from_io(@io, ByteFormat)
-        when 'f' then Float32.from_io(@io, ByteFormat)
-        when 'd' then Float64.from_io(@io, ByteFormat)
-        when 'S' then LongString.from_io(@io, ByteFormat)
+        when 'b' then Int8.from_io(@io, BYTEFORMAT)
+        when 'B' then UInt8.from_io(@io, BYTEFORMAT)
+        when 's' then Int16.from_io(@io, BYTEFORMAT)
+        when 'u' then UInt16.from_io(@io, BYTEFORMAT)
+        when 'I' then Int32.from_io(@io, BYTEFORMAT)
+        when 'i' then UInt32.from_io(@io, BYTEFORMAT)
+        when 'l' then Int64.from_io(@io, BYTEFORMAT)
+        when 'f' then Float32.from_io(@io, BYTEFORMAT)
+        when 'd' then Float64.from_io(@io, BYTEFORMAT)
+        when 'S' then LongString.from_io(@io, BYTEFORMAT)
         when 'x' then read_slice
         when 'A' then read_array
-        when 'T' then Time.unix(Int64.from_io(@io, ByteFormat))
-        when 'F' then Table.from_io(@io, ByteFormat)
+        when 'T' then Time.unix(Int64.from_io(@io, BYTEFORMAT))
+        when 'F' then Table.from_io(@io, BYTEFORMAT)
         when 'V' then nil
-        else raise Error.new "Unknown field type '#{type}'"
+        else          raise Error.new "Unknown field type '#{type}'"
         end
       end
 
       private def read_array
-        size = UInt32.from_io(@io, ByteFormat)
+        size = UInt32.from_io(@io, BYTEFORMAT)
         end_pos = @io.pos + size
         a = Array(Field).new
         while @io.pos < end_pos
@@ -280,7 +280,7 @@ module AMQ
       end
 
       private def read_slice
-        size = UInt32.from_io(@io, ByteFormat)
+        size = UInt32.from_io(@io, BYTEFORMAT)
         bytes = Bytes.new(size)
         @io.read_fully bytes
         bytes
