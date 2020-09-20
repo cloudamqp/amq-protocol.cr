@@ -28,7 +28,7 @@ module AMQ
           when Body::TYPE      then Body.new(channel, size, io)
           when Heartbeat::TYPE then Heartbeat.new
           else
-            raise Error::NotImplemented.new channel, 0_u16, 0_u16
+            raise Error::FrameDecode.new
           end
 
         begin
