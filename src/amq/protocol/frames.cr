@@ -53,7 +53,7 @@ module AMQ
           TYPE
         end
 
-        getter body_size, properties
+        getter class_id, weight, body_size, properties
 
         def initialize(channel : UInt16, @class_id : UInt16, @weight : UInt16, @body_size : UInt64,
                        @properties : Properties, bytesize : UInt32? = nil)
