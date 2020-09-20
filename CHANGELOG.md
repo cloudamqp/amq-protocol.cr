@@ -6,6 +6,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.15] - 2020-09-20
+
+### Fixed
+- Raise Error::FrameDecode when invalid Property flags are detected
+
+### Added
+- Frames::Header#class_id and #weight are now exposed
+
+### Changed
+- Error::FrameDecode is now raised on unexpected Frame type
+
 ## [0.3.14] - 2020-06-27
 
 ### Changed
