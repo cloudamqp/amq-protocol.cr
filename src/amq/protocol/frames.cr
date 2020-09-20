@@ -74,7 +74,7 @@ module AMQ
           class_id = UInt16.from_io(io, format)
           weight = UInt16.from_io(io, format)
           body_size = UInt64.from_io(io, format)
-          props = Properties.from_io(io, format)
+          props = Properties.from_io(io, format, bytesize - 2 - 2 - 8)
           self.new channel, class_id, weight, body_size, props, bytesize
         end
       end
