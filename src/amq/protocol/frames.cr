@@ -1861,7 +1861,111 @@ module AMQ
         def self.from_io(channel, bytesize, io, format)
           method_id = UInt16.from_io(io, format)
           bytesize -= sizeof(UInt16)
-          raise Error::NotImplemented.new(channel, CLASS_ID, method_id)
+          case method_id
+          when 10_u16 then Select.from_io(channel, bytesize, io, format)
+          when 11_u16 then SelectOk.from_io(channel, bytesize, io, format)
+          when 20_u16 then Commit.from_io(channel, bytesize, io, format)
+          when 21_u16 then CommitOk.from_io(channel, bytesize, io, format)
+          when 30_u16 then Rollback.from_io(channel, bytesize, io, format)
+          when 31_u16 then RollbackOk.from_io(channel, bytesize, io, format)
+          else             raise Error::NotImplemented.new(channel, CLASS_ID, method_id)
+          end
+        end
+
+        struct Select < Confirm
+          METHOD_ID = 10_u16
+
+          def method_id : UInt16
+            METHOD_ID
+          end
+
+          def to_io(io, format)
+            wrap(io, format) { }
+          end
+
+          def self.from_io(channel, bytesize, io, format)
+            self.new(channel)
+          end
+        end
+
+        struct SelectOk < Tx
+          METHOD_ID = 11_u16
+
+          def method_id : UInt16
+            METHOD_ID
+          end
+
+          def to_io(io, format)
+            wrap(io, format) { }
+          end
+
+          def self.from_io(channel, bytesize, io, format)
+            self.new(channel)
+          end
+        end
+
+        struct Commit < Tx
+          METHOD_ID = 20_u16
+
+          def method_id : UInt16
+            METHOD_ID
+          end
+
+          def to_io(io, format)
+            wrap(io, format) { }
+          end
+
+          def self.from_io(channel, bytesize, io, format)
+            self.new(channel)
+          end
+        end
+
+        struct CommitOk < Tx
+          METHOD_ID = 21_u16
+
+          def method_id : UInt16
+            METHOD_ID
+          end
+
+          def to_io(io, format)
+            wrap(io, format) { }
+          end
+
+          def self.from_io(channel, bytesize, io, format)
+            self.new(channel)
+          end
+        end
+
+        struct Rollback < Tx
+          METHOD_ID = 30_u16
+
+          def method_id : UInt16
+            METHOD_ID
+          end
+
+          def to_io(io, format)
+            wrap(io, format) { }
+          end
+
+          def self.from_io(channel, bytesize, io, format)
+            self.new(channel)
+          end
+        end
+
+        struct RollbackOk < Tx
+          METHOD_ID = 31_u16
+
+          def method_id : UInt16
+            METHOD_ID
+          end
+
+          def to_io(io, format)
+            wrap(io, format) { }
+          end
+
+          def self.from_io(channel, bytesize, io, format)
+            self.new(channel)
+          end
         end
       end
     end
