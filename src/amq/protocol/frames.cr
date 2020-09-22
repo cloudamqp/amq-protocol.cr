@@ -1376,7 +1376,8 @@ module AMQ
             METHOD_ID
           end
 
-          getter queue, no_ack
+          getter no_ack
+          property queue
 
           def initialize(channel, @reserved1 : UInt16, @queue : String, @no_ack : Bool,
                          bytesize = nil)
@@ -1599,8 +1600,8 @@ module AMQ
             METHOD_ID
           end
 
-          getter queue, no_local, no_ack, exclusive, no_wait, arguments
-          property consumer_tag
+          getter no_local, no_ack, exclusive, no_wait, arguments
+          property queue, consumer_tag
 
           def initialize(channel, @reserved1 : UInt16, @queue : String, @consumer_tag : String,
                          @no_local : Bool, @no_ack : Bool, @exclusive : Bool, @no_wait : Bool,
