@@ -1089,7 +1089,8 @@ module AMQ
             METHOD_ID
           end
 
-          getter reserved1, queue_name, if_unused, if_empty, no_wait
+          getter reserved1, if_unused, if_empty, no_wait
+          property queue_name
 
           def initialize(channel : UInt16, @reserved1 : UInt16, @queue_name : String,
                          @if_unused : Bool, @if_empty : Bool, @no_wait : Bool,
@@ -1153,7 +1154,8 @@ module AMQ
             METHOD_ID
           end
 
-          getter reserved1, queue_name, exchange_name, routing_key, arguments
+          getter reserved1, exchange_name, routing_key, arguments
+          property queue_name
 
           def initialize(channel : UInt16, @reserved1 : UInt16, @queue_name : String,
                          @exchange_name : String, @routing_key : String,
@@ -1206,7 +1208,8 @@ module AMQ
             METHOD_ID
           end
 
-          getter reserved1, queue_name, no_wait
+          getter reserved1, no_wait
+          property queue_name
 
           def initialize(channel : UInt16, @reserved1 : UInt16, @queue_name : String,
                          @no_wait : Bool, bytesize = nil)
