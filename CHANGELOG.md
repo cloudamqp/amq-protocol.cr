@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Transaction frames
 
+### Changed
+- Queue name is now a property on all frames that includes that argument
+
 ## [0.3.15] - 2020-09-20
 
 ### Fixed
