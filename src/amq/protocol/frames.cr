@@ -1032,8 +1032,8 @@ module AMQ
             METHOD_ID
           end
 
-          getter reserved1, exchange_name, routing_key, no_wait, arguments
-          property queue_name
+          getter reserved1, exchange_name, no_wait, arguments
+          property queue_name, routing_key
 
           def initialize(channel : UInt16, @reserved1 : UInt16, @queue_name : String,
                          @exchange_name : String, @routing_key : String, @no_wait : Bool,
