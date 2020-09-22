@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.17] - 2020-09-22
+
 ### Changed
 - Queue name is now a property on Consume/Get frames too
 
