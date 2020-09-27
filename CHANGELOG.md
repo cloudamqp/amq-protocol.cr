@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.19] - 2020-09-27
+
 ### Added
 - Support for parsing Decimal numbers (to Float64) in Tables
 
