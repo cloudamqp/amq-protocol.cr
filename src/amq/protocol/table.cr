@@ -241,6 +241,7 @@ module AMQ
         when 'A' then @io.skip(UInt32.from_io(@io, BYTEFORMAT))
         when 'T' then @io.skip(sizeof(Int64))
         when 'F' then @io.skip(UInt32.from_io(@io, BYTEFORMAT))
+        when 'D' then @io.skip(1 + sizeof(UInt32))
         when 'V' then @io.skip(0)
         else          raise Error.new "Unknown field type '#{type}'"
         end
