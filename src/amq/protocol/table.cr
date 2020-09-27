@@ -264,8 +264,17 @@ module AMQ
         when 'A' then read_array
         when 'T' then Time.unix(Int64.from_io(@io, BYTEFORMAT))
         when 'F' then Table.from_io(@io, BYTEFORMAT)
+        when 'D' then Decimal.from_io(@io, BYTEFORMAT)
         when 'V' then nil
         else          raise Error.new "Unknown field type '#{type}'"
+        end
+      end
+
+      struct Decimal
+        def self.from_io(io, format) : Float64
+          scale = io.read_byte || raise IO::EOFError.new
+          value = UInt32.from_io(io, format)
+          value / 10**scale
         end
       end
 
