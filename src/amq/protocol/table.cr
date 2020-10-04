@@ -1,3 +1,8 @@
+require "./field"
+require "./short_string"
+require "./long_string"
+require "./errors"
+
 module AMQ
   module Protocol
     struct Table
@@ -32,9 +37,11 @@ module AMQ
       def fetch(key : String)
         @io.rewind
         while @io.pos < @io.bytesize
-          k = ShortString.from_io(@io)
-          return read_field if k == key
-          skip_field
+          if key == ShortString.from_io(@io)
+            return read_field
+          else
+            skip_field
+          end
         end
         yield
       end
@@ -42,9 +49,11 @@ module AMQ
       def has_key?(key) : Bool
         @io.rewind
         while @io.pos < @io.bytesize
-          k = ShortString.from_io(@io)
-          return true if k == key
-          skip_field
+          if key == ShortString.from_io(@io)
+            return true
+          else
+            skip_field
+          end
         end
         false
       end
@@ -96,9 +105,7 @@ module AMQ
           while @io.pos < @io.bytesize
             key = ShortString.from_io(@io)
             value = read_field
-            json.field key do
-              value.to_json(json)
-            end
+            json.field key, value
           end
         end
       end
