@@ -59,4 +59,16 @@ describe AMQ::Protocol::Table do
     tbl2.should eq tbl
     tbl2.bytesize.should eq(sizeof(UInt32) + 1 + "key".bytesize + 1 + sizeof(Int32))
   end
+
+  it "comparision is semantic not per byte" do
+    t1 = AMQ::Protocol::Table.new(Hash(String, AMQ::Protocol::Field){
+      "a" => 1_u8,
+      "b" => 1_u8
+    })
+    t2 = AMQ::Protocol::Table.new(Hash(String, AMQ::Protocol::Field){
+      "b" => 1_i32,
+      "a" => 1_i64
+    })
+    t1.should eq t2
+  end
 end

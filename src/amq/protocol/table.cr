@@ -58,6 +58,26 @@ module AMQ
         false
       end
 
+      def each
+        @io.rewind
+        while @io.pos < @io.bytesize
+          k = ShortString.from_io(@io)
+          v = read_field
+          yield k, v
+        end
+      end
+
+      def size
+        @io.rewind
+        i = 0
+        while @io.pos < @io.bytesize
+          ShortString.skip(@io)
+          skip_field
+          i += 1
+        end
+        i
+      end
+
       def any?(&blk : (String, Field) -> _) : Bool
         @io.rewind
         while @io.pos < @io.bytesize
@@ -123,13 +143,13 @@ module AMQ
         io << ')'
       end
 
-      def buffer
-        @io.buffer
-      end
-
+      # Comparition on a semantic level, not on byte level
       def ==(other : self)
-        return false if bytesize != other.bytesize
-        buffer.memcmp(other.buffer, bytesize - sizeof(UInt32))
+        return false if size != other.size
+        each do |k, v|
+          return false if other.fetch(k, nil) != v
+        end
+        true
       end
 
       def delete(key)

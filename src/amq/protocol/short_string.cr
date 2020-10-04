@@ -20,6 +20,11 @@ module AMQ
         io.read_fully(buf.to_slice[0, sz])
         POOL.get(buf.to_unsafe, sz)
       end
+
+      def self.skip(io) : Nil
+        sz = io.read_byte || raise IO::EOFError.new("Can't read short string")
+        io.skip(sz)
+      end
     end
   end
 end
