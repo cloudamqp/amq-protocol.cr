@@ -114,7 +114,7 @@ module AMQ
         h = Hash(String, Field).new
         while @io.pos < @io.bytesize
           k = ShortString.from_io(@io)
-          h[k] = read_field
+          h[k] = read_field(table_to_h: true)
         end
         h
       end
@@ -274,7 +274,7 @@ module AMQ
         end
       end
 
-      private def read_field : Field
+      private def read_field(table_to_h = false) : Field
         type = @io.read_byte
         case type
         when 't' then @io.read_byte == 1_u8
@@ -289,9 +289,9 @@ module AMQ
         when 'd' then Float64.from_io(@io, BYTEFORMAT)
         when 'S' then LongString.from_io(@io, BYTEFORMAT)
         when 'x' then read_slice
-        when 'A' then read_array
+        when 'A' then read_array(table_to_h)
         when 'T' then Time.unix(Int64.from_io(@io, BYTEFORMAT))
-        when 'F' then Table.from_io(@io, BYTEFORMAT)
+        when 'F' then table_to_h ? Table.from_io(@io, BYTEFORMAT).to_h : Table.from_io(@io, BYTEFORMAT)
         when 'D' then Decimal.from_io(@io, BYTEFORMAT)
         when 'V' then nil
         else          raise Error.new "Unknown field type '#{type}'"
@@ -306,12 +306,12 @@ module AMQ
         end
       end
 
-      private def read_array
+      private def read_array(table_to_h = false)
         size = UInt32.from_io(@io, BYTEFORMAT)
         end_pos = @io.pos + size
         a = Array(Field).new
         while @io.pos < end_pos
-          a << read_field
+          a << read_field(table_to_h)
         end
         a
       end
