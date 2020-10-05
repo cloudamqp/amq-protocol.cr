@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## Changed
+- Table's are now compared on a semantic level, not on the byte level
+- Table#to_h is now recursive, in the sense that lower level Tables are also converted to hashes
+
 ## [0.3.19] - 2020-09-27
 
 ### Added
