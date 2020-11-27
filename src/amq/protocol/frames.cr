@@ -1876,7 +1876,7 @@ module AMQ
           end
         end
 
-        struct Select < Confirm
+        struct Select < Tx
           METHOD_ID = 10_u16
 
           def method_id : UInt16
