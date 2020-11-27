@@ -6,7 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## Changed
+## [0.3.21] - 2020-11-27
+
+### Fixed
+- Tx::Select was handled as Confirm::Select
+
+## [0.3.20] - 2020-10-05
+
+### Changed
 - Table's are now compared on a semantic level, not on the byte level
 - Table#to_h is now recursive, in the sense that lower level Tables are also converted to hashes
 
