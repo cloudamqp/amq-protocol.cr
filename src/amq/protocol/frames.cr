@@ -686,7 +686,7 @@ module AMQ
           when 30_u16 then Bind.from_io(channel, bytesize, io, format)
           when 31_u16 then BindOk.from_io(channel, bytesize, io, format)
           when 40_u16 then Unbind.from_io(channel, bytesize, io, format)
-          when 41_u16 then UnbindOk.from_io(channel, bytesize, io, format)
+          when 51_u16 then UnbindOk.from_io(channel, bytesize, io, format)
           else             raise Error::NotImplemented.new(channel, CLASS_ID, method_id)
           end
         end
@@ -906,7 +906,7 @@ module AMQ
         end
 
         struct UnbindOk < Exchange
-          METHOD_ID = 41_u16
+          METHOD_ID = 51_u16
 
           def method_id : UInt16
             METHOD_ID
