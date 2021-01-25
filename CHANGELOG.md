@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.22] - 2021-01-25
+
+### Fixed
+- Exchange::UnbindOk had the wrong method id
+
 ## [0.3.21] - 2020-11-27
 
 ### Fixed
