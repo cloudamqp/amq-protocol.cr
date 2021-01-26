@@ -6,7 +6,7 @@ module AMQ
       def initialize(@channel : UInt16, @bytesize : UInt32)
       end
 
-      abstract def to_io(io, format)
+      abstract def to_io(io : IO, format : IO::ByteFormat)
       abstract def type : UInt8
 
       def wrap(io, format : IO::ByteFormat) : Nil
