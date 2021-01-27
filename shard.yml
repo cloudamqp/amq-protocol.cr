@@ -8,6 +8,6 @@ authors:
 description: |
   AMQP 0-9-1 protocol library
 
-crystal: 0.35.1
+crystal: 0.36.0
 
 license: MIT
