@@ -71,4 +71,13 @@ describe AMQ::Protocol::Table do
     })
     t1.should eq t2
   end
+
+  it "can be created from namedtuple" do
+    t1 = AMQ::Protocol::Table.new({ b: 1_i32, a: 1_i64 })
+    t2 = AMQ::Protocol::Table.new(Hash(String, AMQ::Protocol::Field){
+      "b" => 1_i32,
+      "a" => 1_i64
+    })
+    t1.should eq t2
+  end
 end
