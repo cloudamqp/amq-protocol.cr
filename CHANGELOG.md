@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2021-06-09
+
+### Added
+
+- Table can be created from a NamedTuple
+
 ## [1.0.0] - 2021-03-23
 
 ### Changed

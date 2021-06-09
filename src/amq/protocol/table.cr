@@ -248,7 +248,10 @@ module AMQ
         when Table
           @io.write_byte 'F'.ord.to_u8
           @io.write_bytes value, BYTEFORMAT
-        when Hash(String, Field)
+        when Hash
+          @io.write_byte 'F'.ord.to_u8
+          @io.write_bytes Table.new(value), BYTEFORMAT
+        when NamedTuple
           @io.write_byte 'F'.ord.to_u8
           @io.write_bytes Table.new(value), BYTEFORMAT
         when Nil

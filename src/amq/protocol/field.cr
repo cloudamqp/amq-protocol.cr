@@ -17,6 +17,8 @@ module AMQ
                   Time |
                   Table |
                   Hash(String, Field) |
+                  NamedTuple(key: String) |
+                  NamedTuple(key: Symbol) |
                   Array(Field) |
                   Bytes |
                   Array(Table)

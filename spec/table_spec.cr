@@ -2,7 +2,7 @@ require "./spec_helper"
 
 describe AMQ::Protocol::Table do
   it "can be encoded and decoded" do
-    data = Hash(String, AMQ::Protocol::Field){
+    data = {
       "bool"    => true,
       "int8"    => Int8::MAX,
       "uint8"   => UInt8::MAX,
@@ -28,12 +28,12 @@ describe AMQ::Protocol::Table do
         "a" * 257,
         "aaaa".to_slice,
         Time.unix(Time.utc.to_unix),
-        Hash(String, AMQ::Protocol::Field){"key" => "value"},
+        {"key" => "value"},
         nil,
-      ] of AMQ::Protocol::Field,
+      ],
       "byte_array" => "aaaa".to_slice,
       "time"       => Time.unix(Time.utc.to_unix),
-      "hash"       => Hash(String, AMQ::Protocol::Field){"key" => "value"},
+      "hash"       => {"key" => 1},
       "nil"        => nil,
     }
     tbl = AMQ::Protocol::Table.new(data)
@@ -46,9 +46,7 @@ describe AMQ::Protocol::Table do
   end
 
   it "can be modified" do
-    tbl = AMQ::Protocol::Table.new(Hash(String, AMQ::Protocol::Field){
-      "key" => "value"
-    })
+    tbl = AMQ::Protocol::Table.new({ "key" => "value" })
     tbl.bytesize.should eq(sizeof(UInt32) + 1 + "key".bytesize + 1 + sizeof(UInt32) + "value".bytesize)
     tbl["key"] = 1
     tbl.bytesize.should eq(sizeof(UInt32) + 1 + "key".bytesize + 1 + sizeof(Int32))
