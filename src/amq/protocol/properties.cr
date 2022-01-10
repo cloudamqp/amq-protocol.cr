@@ -1,3 +1,5 @@
+require "./table"
+
 module AMQ
   module Protocol
     struct Properties
