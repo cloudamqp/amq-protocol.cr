@@ -3,103 +3,405 @@ require "./table"
 module AMQ
   module Protocol
     struct Properties
-      FLAG_CONTENT_TYPE     = 0x8000_u16
-      FLAG_CONTENT_ENCODING = 0x4000_u16
-      FLAG_HEADERS          = 0x2000_u16
-      FLAG_DELIVERY_MODE    = 0x1000_u16
-      FLAG_PRIORITY         = 0x0800_u16
-      FLAG_CORRELATION_ID   = 0x0400_u16
-      FLAG_REPLY_TO         = 0x0200_u16
-      FLAG_EXPIRATION       = 0x0100_u16
-      FLAG_MESSAGE_ID       = 0x0080_u16
-      FLAG_TIMESTAMP        = 0x0040_u16
-      FLAG_TYPE             = 0x0020_u16
-      FLAG_USER_ID          = 0x0010_u16
-      FLAG_APP_ID           = 0x0008_u16
-      FLAG_RESERVED1        = 0x0004_u16
-
-      property content_type
-      property content_encoding
-      property headers
-      property delivery_mode
-      property priority
-      property correlation_id
-      property reply_to
-      property expiration
-      property message_id
-      property timestamp
-      property type
-      property user_id
-      property app_id
-      property reserved1
-
-      def_equals_and_hash content_type, content_encoding, headers, delivery_mode,
-        priority, correlation_id, reply_to, expiration, message_id, timestamp,
-        type, user_id, app_id, reserved1
-
-      def initialize(@content_type : String? = nil,
-                     @content_encoding : String? = nil,
-                     @headers : Table? = nil,
-                     @delivery_mode : UInt8? = nil,
-                     @priority : UInt8? = nil,
-                     @correlation_id : String? = nil,
-                     @reply_to : String? = nil,
-                     @expiration : String? = nil,
-                     @message_id : String? = nil,
-                     @timestamp : Time? = nil,
-                     @type : String? = nil,
-                     @user_id : String? = nil,
-                     @app_id : String? = nil,
-                     @reserved1 : String? = nil)
+      @[Flags]
+      private enum Flags : UInt16
+        ContentType     = 0x8000_u16
+        ContentEncoding = 0x4000_u16
+        Headers         = 0x2000_u16
+        DeliveryMode    = 0x1000_u16
+        Priority        = 0x0800_u16
+        CorrelationId   = 0x0400_u16
+        ReplyTo         = 0x0200_u16
+        Expiration      = 0x0100_u16
+        MessageId       = 0x0080_u16
+        Timestamp       = 0x0040_u16
+        Type            = 0x0020_u16
+        UserId          = 0x0010_u16
+        AppId           = 0x0008_u16
+        Reserved1       = 0x0004_u16
       end
 
-      def self.from_io(io, format, bytesize = 2)
-        flags = UInt16.from_io io, format
-        invalid = false
-        invalid ||= flags & 1_u16 << 0 > 0
-        invalid ||= flags & 2_u16 << 0 > 0
-        if invalid
-          io.skip(bytesize - 2)
-          raise Error::FrameDecode.new("Invalid property flags")
+      def content_type
+        if @has.content_type?
+          io = @io.rewind
+          ShortString.from_io(io, BYTEFORMAT)
         end
-        content_type = ShortString.from_io(io, format) if flags & FLAG_CONTENT_TYPE > 0
-        content_encoding = ShortString.from_io(io, format) if flags & FLAG_CONTENT_ENCODING > 0
-        headers = Table.from_io(io, format) if flags & FLAG_HEADERS > 0
-        delivery_mode = io.read_byte if flags & FLAG_DELIVERY_MODE > 0
-        priority = io.read_byte if flags & FLAG_PRIORITY > 0
-        correlation_id = ShortString.from_io(io, format) if flags & FLAG_CORRELATION_ID > 0
-        reply_to = ShortString.from_io(io, format) if flags & FLAG_REPLY_TO > 0
-        expiration = ShortString.from_io(io, format) if flags & FLAG_EXPIRATION > 0
-        message_id = ShortString.from_io(io, format) if flags & FLAG_MESSAGE_ID > 0
-        timestamp = Time.unix(Int64.from_io(io, format)) if flags & FLAG_TIMESTAMP > 0
-        type = ShortString.from_io(io, format) if flags & FLAG_TYPE > 0
-        user_id = ShortString.from_io(io, format) if flags & FLAG_USER_ID > 0
-        app_id = ShortString.from_io(io, format) if flags & FLAG_APP_ID > 0
-        reserved1 = ShortString.from_io(io, format) if flags & FLAG_RESERVED1 > 0
-        Properties.new(content_type, content_encoding, headers, delivery_mode,
-          priority, correlation_id, reply_to, expiration,
-          message_id, timestamp, type, user_id, app_id, reserved1)
+      end
+
+      def content_encoding
+        has = @has
+        if @has.content_encoding?
+          io = @io.rewind
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.content_type?
+          ShortString.from_io(io, BYTEFORMAT)
+        end
+      end
+
+      def headers
+        has = @has
+        if has.headers?
+          io = @io.rewind
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.content_type?
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.content_encoding?
+          Table.from_io(io, BYTEFORMAT)
+        end
+      end
+
+      def delivery_mode
+        has = @has
+        if has.delivery_mode?
+          io = @io.rewind
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.content_type?
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.content_encoding?
+          io.skip(UInt32.from_io(io, BYTEFORMAT)) if has.headers?
+          io.read_byte || raise IO::EOFError.new
+        end
+      end
+
+      def priority
+        has = @has
+        if has.priority?
+          io = @io.rewind
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.content_type?
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.content_encoding?
+          io.skip(UInt32.from_io(io, BYTEFORMAT)) if has.headers?
+          io.skip(1) if has.delivery_mode?
+          io.read_byte || raise IO::EOFError.new
+        end
+      end
+
+      def correlation_id
+        has = @has
+        if has.correlation_id?
+          io = @io.rewind
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.content_type?
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.content_encoding?
+          io.skip(UInt32.from_io(io, BYTEFORMAT)) if has.headers?
+          io.skip(1) if has.delivery_mode?
+          io.skip(1) if has.priority?
+          ShortString.from_io(io, BYTEFORMAT)
+        end
+      end
+
+      def reply_to
+        has = @has
+        if has.reply_to?
+          io = @io.rewind
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.content_type?
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.content_encoding?
+          io.skip(UInt32.from_io(io, BYTEFORMAT)) if has.headers?
+          io.skip(1) if has.delivery_mode?
+          io.skip(1) if has.priority?
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.correlation_id?
+          ShortString.from_io(io, BYTEFORMAT)
+        end
+      end
+
+      def expiration
+        has = @has
+        if has.expiration?
+          io = @io.rewind
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.content_type?
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.content_encoding?
+          io.skip(UInt32.from_io(io, BYTEFORMAT)) if has.headers?
+          io.skip(1) if has.delivery_mode?
+          io.skip(1) if has.priority?
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.correlation_id?
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.reply_to?
+          ShortString.from_io(io, BYTEFORMAT)
+        end
+      end
+
+      def message_id
+        has = @has
+        if has.message_id?
+          io = @io.rewind
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.content_type?
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.content_encoding?
+          io.skip(UInt32.from_io(io, BYTEFORMAT)) if has.headers?
+          io.skip(1) if has.delivery_mode?
+          io.skip(1) if has.priority?
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.correlation_id?
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.reply_to?
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.expiration?
+          ShortString.from_io(io, BYTEFORMAT)
+        end
+      end
+
+      def timestamp
+        has = @has
+        if has.timestamp?
+          io = @io.rewind
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.content_type?
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.content_encoding?
+          io.skip(UInt32.from_io(io, BYTEFORMAT)) if has.headers?
+          io.skip(1) if has.delivery_mode?
+          io.skip(1) if has.priority?
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.correlation_id?
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.reply_to?
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.expiration?
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.message_id?
+          Time.unix(Int64.from_io(io, BYTEFORMAT))
+        end
+      end
+
+      def type
+        has = @has
+        if has.type?
+          io = @io.rewind
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.content_type?
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.content_encoding?
+          io.skip(UInt32.from_io(io, BYTEFORMAT)) if has.headers?
+          io.skip(1) if has.delivery_mode?
+          io.skip(1) if has.priority?
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.correlation_id?
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.reply_to?
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.expiration?
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.message_id?
+          io.skip(sizeof(Int64)) if has.timestamp?
+          ShortString.from_io(io, BYTEFORMAT)
+        end
+      end
+
+      def user_id
+        has = @has
+        if has.user_id?
+          io = @io.rewind
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.content_type?
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.content_encoding?
+          io.skip(UInt32.from_io(io, BYTEFORMAT)) if has.headers?
+          io.skip(1) if has.delivery_mode?
+          io.skip(1) if has.priority?
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.correlation_id?
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.reply_to?
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.expiration?
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.message_id?
+          io.skip(sizeof(Int64)) if has.timestamp?
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.type?
+          ShortString.from_io(io, BYTEFORMAT)
+        end
+      end
+
+      def app_id
+        has = @has
+        if has.app_id?
+          io = @io.rewind
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.content_type?
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.content_encoding?
+          io.skip(UInt32.from_io(io, BYTEFORMAT)) if has.headers?
+          io.skip(1) if has.delivery_mode?
+          io.skip(1) if has.priority?
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.correlation_id?
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.reply_to?
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.expiration?
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.message_id?
+          io.skip(sizeof(Int64)) if has.timestamp?
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.type?
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.user_id?
+          ShortString.from_io(io, BYTEFORMAT)
+        end
+      end
+
+      def reserved1
+        has = @has
+        if has.content_encoding?
+          io = @io.rewind
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.content_type?
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.content_encoding?
+          io.skip(UInt32.from_io(io, BYTEFORMAT)) if has.headers?
+          io.skip(1) if has.delivery_mode?
+          io.skip(1) if has.priority?
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.correlation_id?
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.reply_to?
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.expiration?
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.message_id?
+          io.skip(sizeof(Int64)) if has.timestamp?
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.type?
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.user_id?
+          io.skip(io.read_byte || raise IO::EOFError.new) if has.app_id?
+          ShortString.from_io(io, BYTEFORMAT)
+        end
+      end
+
+      def ==(other : self)
+        to_slice == other.to_slice
+      end
+
+      def to_slice
+        @io.to_slice
+      end
+
+      getter has
+
+      def initialize(content_type : String? = nil,
+                     content_encoding : String? = nil,
+                     headers : Table? = nil,
+                     delivery_mode : UInt8? = nil,
+                     priority : UInt8? = nil,
+                     correlation_id : String? = nil,
+                     reply_to : String? = nil,
+                     expiration : String? = nil,
+                     message_id : String? = nil,
+                     timestamp : Time? = nil,
+                     type : String? = nil,
+                     user_id : String? = nil,
+                     app_id : String? = nil,
+                     reserved1 : String? = nil)
+        @io = io = IO::Memory.new
+        @has = Flags.new(0u16)
+        @has |= Flags::ContentType if content_type
+        @has |= Flags::ContentEncoding if content_encoding
+        @has |= Flags::Headers if headers
+        @has |= Flags::DeliveryMode if delivery_mode
+        @has |= Flags::Priority if priority
+        @has |= Flags::CorrelationId if correlation_id
+        @has |= Flags::ReplyTo if reply_to
+        @has |= Flags::Expiration if expiration
+        @has |= Flags::MessageId if message_id
+        @has |= Flags::Timestamp if timestamp
+        @has |= Flags::Type if type
+        @has |= Flags::UserId if user_id
+        @has |= Flags::AppId if app_id
+        @has |= Flags::Reserved1 if reserved1
+
+        if v = content_type
+          io.write_bytes ShortString.new(v), BYTEFORMAT
+        end
+        if v = content_encoding
+          io.write_bytes ShortString.new(v), BYTEFORMAT
+        end
+        if v = headers
+          io.write_bytes v, BYTEFORMAT
+        end
+        if v = delivery_mode
+          io.write_byte v
+        end
+        if v = priority
+          io.write_byte v
+        end
+        if v = correlation_id
+          io.write_bytes ShortString.new(v), BYTEFORMAT
+        end
+        if v = reply_to
+          io.write_bytes ShortString.new(v), BYTEFORMAT
+        end
+        if v = expiration
+          io.write_bytes ShortString.new(v), BYTEFORMAT
+        end
+        if v = message_id
+          io.write_bytes ShortString.new(v), BYTEFORMAT
+        end
+        if v = timestamp
+          io.write_bytes v.to_unix.to_i64, BYTEFORMAT
+        end
+        if v = type
+          io.write_bytes ShortString.new(v), BYTEFORMAT
+        end
+        if v = user_id
+          io.write_bytes ShortString.new(v), BYTEFORMAT
+        end
+        if v = app_id
+          io.write_bytes ShortString.new(v), BYTEFORMAT
+        end
+        if v = reserved1
+          io.write_bytes ShortString.new(v), BYTEFORMAT
+        end
+      end
+
+      def initialize(@has : Flags, @io = IO::Memory.new(0))
+      end
+
+      def self.from_io(io, format, bytesize : Int? = nil)
+        raise ArgumentError.new("Only NetworkingEnding byte format supported") unless format == BYTEFORMAT
+        flags = UInt16.from_io io, BYTEFORMAT
+        has = Flags.new(flags)
+        if bytesize
+          mem = IO::Memory.new(bytesize - 2)
+          IO.copy(io, mem, bytesize - 2)
+        else
+          mem = IO::Memory.new
+          if has.content_type?
+            len = io.read_byte || raise IO::EOFError.new
+            mem.write_byte len
+            IO.copy(io, mem, len)
+          end
+          if has.content_encoding?
+            len = io.read_byte || raise IO::EOFError.new
+            mem.write_byte len
+            IO.copy(io, mem, len)
+          end
+          if has.headers?
+            len = io.read_bytes UInt32, format
+            mem.write_bytes len, format
+            IO.copy(io, mem, len)
+          end
+          mem.write_byte(io.read_byte || raise IO::EOFError.new) if has.delivery_mode?
+          mem.write_byte(io.read_byte || raise IO::EOFError.new) if has.priority?
+          if has.correlation_id?
+            len = io.read_byte || raise IO::EOFError.new
+            mem.write_byte len
+            IO.copy(io, mem, len)
+          end
+          if has.reply_to?
+            len = io.read_byte || raise IO::EOFError.new
+            mem.write_byte len
+            IO.copy(io, mem, len)
+          end
+          if has.expiration?
+            len = io.read_byte || raise IO::EOFError.new
+            mem.write_byte len
+            IO.copy(io, mem, len)
+          end
+          if has.message_id?
+            len = io.read_byte || raise IO::EOFError.new
+            mem.write_byte len
+            IO.copy(io, mem, len)
+          end
+          IO.copy(io, mem, sizeof(Int64)) if has.timestamp?
+          if has.type?
+            len = io.read_byte || raise IO::EOFError.new
+            mem.write_byte len
+            IO.copy(io, mem, len)
+          end
+          if has.user_id?
+            len = io.read_byte || raise IO::EOFError.new
+            mem.write_byte len
+            IO.copy(io, mem, len)
+          end
+          if has.app_id?
+            len = io.read_byte || raise IO::EOFError.new
+            mem.write_byte len
+            IO.copy(io, mem, len)
+          end
+          if has.reserved1?
+            len = io.read_byte || raise IO::EOFError.new
+            mem.write_byte len
+            IO.copy(io, mem, len)
+          end
+        end
+        Properties.new(has, mem)
       end
 
       def self.from_json(data : JSON::Any)
-        p = Properties.new
-        p.content_type = data["content_type"]?.try(&.as_s)
-        p.content_encoding = data["content_encoding"]?.try(&.as_s)
-        p.headers = data["headers"]?.try(&.as_h?)
+        content_type = data["content_type"]?.try(&.as_s)
+        content_encoding = data["content_encoding"]?.try(&.as_s)
+        headers = data["headers"]?.try(&.as_h?)
           .try { |hdrs| Table.new self.cast_to_field(hdrs).as(Hash(String, Field)) }
-        p.delivery_mode = data["delivery_mode"]?.try(&.as_i?.try(&.to_u8))
-        p.priority = data["priority"]?.try(&.as_i?.try(&.to_u8))
-        p.correlation_id = data["correlation_id"]?.try(&.as_s)
-        p.reply_to = data["reply_to"]?.try(&.as_s)
+        delivery_mode = data["delivery_mode"]?.try(&.as_i?.try(&.to_u8))
+        priority = data["priority"]?.try(&.as_i?.try(&.to_u8))
+        correlation_id = data["correlation_id"]?.try(&.as_s)
+        reply_to = data["reply_to"]?.try(&.as_s)
         exp = data["expiration"]?
-        p.expiration = exp.try { |e| e.as_s? || e.as_i64?.try(&.to_s) }
-        p.message_id = data["message_id"]?.try(&.as_s)
-        p.timestamp = data["timestamp"]?.try(&.as_i64?).try { |s| Time.unix(s) }
-        p.type = data["type"]?.try(&.as_s)
-        p.user_id = data["user_id"]?.try(&.as_s)
-        p.app_id = data["app_id"]?.try(&.as_s)
-        p.reserved1 = data["reserved"]?.try(&.as_s)
-        p
+        expiration = exp.try { |e| e.as_s? || e.as_i64?.try(&.to_s) }
+        message_id = data["message_id"]?.try(&.as_s)
+        timestamp = data["timestamp"]?.try(&.as_i64?).try { |s| Time.unix(s) }
+        type = data["type"]?.try(&.as_s)
+        user_id = data["user_id"]?.try(&.as_s)
+        app_id = data["app_id"]?.try(&.as_s)
+        reserved1 = data["reserved"]?.try(&.as_s)
+        Properties.new(content_type, content_encoding, headers, delivery_mode,
+          priority, correlation_id, reply_to, expiration,
+          message_id, timestamp, type, user_id, app_id, reserved1)
       end
 
       # https://github.com/crystal-lang/crystal/issues/4885#issuecomment-325109328
@@ -127,143 +429,105 @@ module AMQ
 
       def to_json(json : JSON::Builder)
         {
-          "content_type"     => @content_type,
-          "content_encoding" => @content_encoding,
-          "headers"          => @headers,
-          "delivery_mode"    => @delivery_mode,
-          "priority"         => @priority,
-          "correlation_id"   => @correlation_id,
-          "reply_to"         => @reply_to,
-          "expiration"       => @expiration,
-          "message_id"       => @message_id,
-          "timestamp"        => @timestamp,
-          "type"             => @type,
-          "user_id"          => @user_id,
-          "app_id"           => @app_id,
-          "reserved"         => @reserved1,
+          "content_type"     => content_type,
+          "content_encoding" => content_encoding,
+          "headers"          => headers,
+          "delivery_mode"    => delivery_mode,
+          "priority"         => priority,
+          "correlation_id"   => correlation_id,
+          "reply_to"         => reply_to,
+          "expiration"       => expiration,
+          "message_id"       => message_id,
+          "timestamp"        => timestamp,
+          "type"             => type,
+          "user_id"          => user_id,
+          "app_id"           => app_id,
+          "reserved"         => reserved1,
         }.compact.to_json(json)
       end
 
       def to_io(io, format)
-        flags = 0_u16
-        flags = flags | FLAG_CONTENT_TYPE if @content_type
-        flags = flags | FLAG_CONTENT_ENCODING if @content_encoding
-        flags = flags | FLAG_HEADERS if @headers
-        flags = flags | FLAG_DELIVERY_MODE if @delivery_mode
-        flags = flags | FLAG_PRIORITY if @priority
-        flags = flags | FLAG_CORRELATION_ID if @correlation_id
-        flags = flags | FLAG_REPLY_TO if @reply_to
-        flags = flags | FLAG_EXPIRATION if @expiration
-        flags = flags | FLAG_MESSAGE_ID if @message_id
-        flags = flags | FLAG_TIMESTAMP if @timestamp
-        flags = flags | FLAG_TYPE if @type
-        flags = flags | FLAG_USER_ID if @user_id
-        flags = flags | FLAG_APP_ID if @app_id
-        flags = flags | FLAG_RESERVED1 if @reserved1
+        raise ArgumentError.new("Only NetworkingEnding byte format supported") unless format == BYTEFORMAT
 
-        io.write_bytes(flags, format)
-
-        io.write_bytes ShortString.new(@content_type.not_nil!), format if @content_type
-        io.write_bytes ShortString.new(@content_encoding.not_nil!), format if @content_encoding
-        io.write_bytes @headers.not_nil!, format if @headers
-        io.write_byte @delivery_mode.not_nil! if @delivery_mode
-        io.write_byte @priority.not_nil! if @priority
-        io.write_bytes ShortString.new(@correlation_id.not_nil!), format if @correlation_id
-        io.write_bytes ShortString.new(@reply_to.not_nil!), format if @reply_to
-        io.write_bytes ShortString.new(@expiration.not_nil!), format if @expiration
-        io.write_bytes ShortString.new(@message_id.not_nil!), format if @message_id
-        io.write_bytes @timestamp.not_nil!.to_unix.to_i64, format if @timestamp
-        io.write_bytes ShortString.new(@type.not_nil!), format if @type
-        io.write_bytes ShortString.new(@user_id.not_nil!), format if @user_id
-        io.write_bytes ShortString.new(@app_id.not_nil!), format if @app_id
-        io.write_bytes ShortString.new(@reserved1.not_nil!), format if @reserved1
+        io.write_bytes(@has.to_u16, BYTEFORMAT)
+        IO.copy(@io.rewind, io)
       end
 
+      BYTEFORMAT = IO::ByteFormat::NetworkEndian
+
       def bytesize
-        size = 2
-        size += 1 + @content_type.not_nil!.bytesize if @content_type
-        size += 1 + @content_encoding.not_nil!.bytesize if @content_encoding
-        size += @headers.not_nil!.bytesize if @headers
-        size += 1 if @delivery_mode
-        size += 1 if @priority
-        size += 1 + @correlation_id.not_nil!.bytesize if @correlation_id
-        size += 1 + @reply_to.not_nil!.bytesize if @reply_to
-        size += 1 + @expiration.not_nil!.bytesize if @expiration
-        size += 1 + @message_id.not_nil!.bytesize if @message_id
-        size += sizeof(Int64) if @timestamp
-        size += 1 + @type.not_nil!.bytesize if @type
-        size += 1 + @user_id.not_nil!.bytesize if @user_id
-        size += 1 + @app_id.not_nil!.bytesize if @app_id
-        size += 1 + @reserved1.not_nil!.bytesize if @reserved1
-        size
+        2 + @io.bytesize
       end
 
       def self.skip(io, format) : Int64
-        flags = io.read_bytes UInt16, format
+        raise ArgumentError.new("Only NetworkingEnding byte format supported") unless format == BYTEFORMAT
+
+        flags = io.read_bytes UInt16, BYTEFORMAT
+        has = Flags.new(flags)
         skipped = sizeof(UInt16).to_i64
-        if flags & FLAG_CONTENT_TYPE > 0
+        if has.content_type?
           len = io.read_byte || raise IO::EOFError.new
           io.skip(len)
           skipped += 1 + len
         end
-        if flags & FLAG_CONTENT_ENCODING > 0
+        if has.content_encoding?
           len = io.read_byte || raise IO::EOFError.new
           io.skip(len)
           skipped += 1 + len
         end
-        if flags & FLAG_HEADERS > 0
-          len = UInt32.from_io(io, format)
+        if has.headers?
+          len = UInt32.from_io(io, BYTEFORMAT)
           io.skip(len)
           skipped += sizeof(UInt32) + len
         end
-        if flags & FLAG_DELIVERY_MODE > 0
+        if has.delivery_mode?
           io.skip(1)
           skipped += 1
         end
-        if flags & FLAG_PRIORITY > 0
+        if has.priority?
           io.skip(1)
           skipped += 1
         end
-        if flags & FLAG_CORRELATION_ID > 0
+        if has.correlation_id?
           len = io.read_byte || raise IO::EOFError.new
           io.skip(len)
           skipped += 1 + len
         end
-        if flags & FLAG_REPLY_TO > 0
+        if has.reply_to?
           len = io.read_byte || raise IO::EOFError.new
           io.skip(len)
           skipped += 1 + len
         end
-        if flags & FLAG_EXPIRATION > 0
+        if has.expiration?
           len = io.read_byte || raise IO::EOFError.new
           io.skip(len)
           skipped += 1 + len
         end
-        if flags & FLAG_MESSAGE_ID > 0
+        if has.message_id?
           len = io.read_byte || raise IO::EOFError.new
           io.skip(len)
           skipped += 1 + len
         end
-        if flags & FLAG_TIMESTAMP > 0
+        if has.timestamp?
           io.skip(sizeof(Int64))
           skipped += sizeof(Int64)
         end
-        if flags & FLAG_TYPE > 0
+        if has.type?
           len = io.read_byte || raise IO::EOFError.new
           io.skip(len)
           skipped += 1 + len
         end
-        if flags & FLAG_USER_ID > 0
+        if has.user_id?
           len = io.read_byte || raise IO::EOFError.new
           io.skip(len)
           skipped += 1 + len
         end
-        if flags & FLAG_APP_ID > 0
+        if has.app_id?
           len = io.read_byte || raise IO::EOFError.new
           io.skip(len)
           skipped += 1 + len
         end
-        if flags & FLAG_RESERVED1 > 0
+        if has.reserved1?
           len = io.read_byte || raise IO::EOFError.new
           io.skip(len)
           skipped += 1 + len
@@ -273,20 +537,20 @@ module AMQ
 
       def clone
         Properties.new(
-          @content_type.clone,
-          @content_encoding.clone,
-          @headers.clone,
-          @delivery_mode.clone,
-          @priority.clone,
-          @correlation_id.clone,
-          @reply_to.clone,
-          @expiration.clone,
-          @message_id.clone,
-          @timestamp.clone,
-          @type.clone,
-          @user_id.clone,
-          @app_id.clone,
-          @reserved1.clone
+          content_type,
+          content_encoding,
+          headers,
+          delivery_mode,
+          priority,
+          correlation_id,
+          reply_to,
+          expiration,
+          message_id,
+          timestamp,
+          type,
+          user_id,
+          app_id,
+          reserved1
         )
       end
     end
