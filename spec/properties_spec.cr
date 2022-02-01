@@ -54,4 +54,17 @@ describe AMQ::Protocol::Properties do
       props.timestamp
     end
   end
+
+  it "can set timestamp" do
+    props = AMQ::Protocol::Properties.new
+    t = Time.utc
+    props.timestamp = t
+    props.timestamp.should eq Time.unix(t.to_unix)
+  end
+
+  it "can unset timestamp" do
+    props = AMQ::Protocol::Properties.new
+    props.timestamp = nil
+    props.timestamp.should be_nil
+  end
 end

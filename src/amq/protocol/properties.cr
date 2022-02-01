@@ -298,7 +298,7 @@ module AMQ
       end
 
       def timestamp=(value : Time?) : Nil
-        @timestamp_raw = value.try &.to_i64
+        @timestamp_raw = value.try &.to_unix
       end
     end
   end
