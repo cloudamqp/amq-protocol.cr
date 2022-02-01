@@ -27,14 +27,14 @@ module AMQ
       property reply_to
       property expiration
       property message_id
-      property timestamp
+      property timestamp_raw : Int64?
       property type
       property user_id
       property app_id
       property reserved1
 
       def_equals_and_hash content_type, content_encoding, headers, delivery_mode,
-        priority, correlation_id, reply_to, expiration, message_id, timestamp,
+        priority, correlation_id, reply_to, expiration, message_id, timestamp_raw,
         type, user_id, app_id, reserved1
 
       def initialize(@content_type : String? = nil,
@@ -46,11 +46,12 @@ module AMQ
                      @reply_to : String? = nil,
                      @expiration : String? = nil,
                      @message_id : String? = nil,
-                     @timestamp : Time? = nil,
+                     timestamp : Time | Int64 | Nil = nil,
                      @type : String? = nil,
                      @user_id : String? = nil,
                      @app_id : String? = nil,
                      @reserved1 : String? = nil)
+        @timestamp_raw = timestamp.is_a?(Time) ? timestamp.to_unix : timestamp
       end
 
       def self.from_io(io, format, bytesize = 2)
@@ -71,14 +72,14 @@ module AMQ
         reply_to = ShortString.from_io(io, format) if flags & FLAG_REPLY_TO > 0
         expiration = ShortString.from_io(io, format) if flags & FLAG_EXPIRATION > 0
         message_id = ShortString.from_io(io, format) if flags & FLAG_MESSAGE_ID > 0
-        timestamp = Time.unix(Int64.from_io(io, format)) if flags & FLAG_TIMESTAMP > 0
+        timestamp_raw = Int64.from_io(io, format) if flags & FLAG_TIMESTAMP > 0
         type = ShortString.from_io(io, format) if flags & FLAG_TYPE > 0
         user_id = ShortString.from_io(io, format) if flags & FLAG_USER_ID > 0
         app_id = ShortString.from_io(io, format) if flags & FLAG_APP_ID > 0
         reserved1 = ShortString.from_io(io, format) if flags & FLAG_RESERVED1 > 0
         Properties.new(content_type, content_encoding, headers, delivery_mode,
           priority, correlation_id, reply_to, expiration,
-          message_id, timestamp, type, user_id, app_id, reserved1)
+          message_id, timestamp_raw, type, user_id, app_id, reserved1)
       end
 
       def self.from_json(data : JSON::Any)
@@ -94,7 +95,7 @@ module AMQ
         exp = data["expiration"]?
         p.expiration = exp.try { |e| e.as_s? || e.as_i64?.try(&.to_s) }
         p.message_id = data["message_id"]?.try(&.as_s)
-        p.timestamp = data["timestamp"]?.try(&.as_i64?).try { |s| Time.unix(s) }
+        p.timestamp_raw = data["timestamp"]?.try(&.as_i64?)
         p.type = data["type"]?.try(&.as_s)
         p.user_id = data["user_id"]?.try(&.as_s)
         p.app_id = data["app_id"]?.try(&.as_s)
@@ -136,7 +137,7 @@ module AMQ
           "reply_to"         => @reply_to,
           "expiration"       => @expiration,
           "message_id"       => @message_id,
-          "timestamp"        => @timestamp,
+          "timestamp"        => @timestamp_raw,
           "type"             => @type,
           "user_id"          => @user_id,
           "app_id"           => @app_id,
@@ -155,7 +156,7 @@ module AMQ
         flags = flags | FLAG_REPLY_TO if @reply_to
         flags = flags | FLAG_EXPIRATION if @expiration
         flags = flags | FLAG_MESSAGE_ID if @message_id
-        flags = flags | FLAG_TIMESTAMP if @timestamp
+        flags = flags | FLAG_TIMESTAMP if @timestamp_raw
         flags = flags | FLAG_TYPE if @type
         flags = flags | FLAG_USER_ID if @user_id
         flags = flags | FLAG_APP_ID if @app_id
@@ -172,7 +173,7 @@ module AMQ
         io.write_bytes ShortString.new(@reply_to.not_nil!), format if @reply_to
         io.write_bytes ShortString.new(@expiration.not_nil!), format if @expiration
         io.write_bytes ShortString.new(@message_id.not_nil!), format if @message_id
-        io.write_bytes @timestamp.not_nil!.to_unix.to_i64, format if @timestamp
+        io.write_bytes @timestamp_raw.not_nil!, format if @timestamp_raw
         io.write_bytes ShortString.new(@type.not_nil!), format if @type
         io.write_bytes ShortString.new(@user_id.not_nil!), format if @user_id
         io.write_bytes ShortString.new(@app_id.not_nil!), format if @app_id
@@ -190,7 +191,7 @@ module AMQ
         size += 1 + @reply_to.not_nil!.bytesize if @reply_to
         size += 1 + @expiration.not_nil!.bytesize if @expiration
         size += 1 + @message_id.not_nil!.bytesize if @message_id
-        size += sizeof(Int64) if @timestamp
+        size += sizeof(Int64) if @timestamp_raw
         size += 1 + @type.not_nil!.bytesize if @type
         size += 1 + @user_id.not_nil!.bytesize if @user_id
         size += 1 + @app_id.not_nil!.bytesize if @app_id
@@ -282,12 +283,22 @@ module AMQ
           @reply_to.clone,
           @expiration.clone,
           @message_id.clone,
-          @timestamp.clone,
+          @timestamp_raw.clone,
           @type.clone,
           @user_id.clone,
           @app_id.clone,
           @reserved1.clone
         )
+      end
+
+      def timestamp : Time?
+        if raw = @timestamp_raw
+          Time.unix(raw)
+        end
+      end
+
+      def timestamp=(value : Time?) : Nil
+        @timestamp_raw = value.try &.to_i64
       end
     end
   end
