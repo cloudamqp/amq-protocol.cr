@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.2] - 2022-02-01
+
+### Changed
+
+- Parse timestamp on demand, as it might not contain a valid timestamp
+
 ## [1.0.1] - 2021-06-09
 
 ### Added

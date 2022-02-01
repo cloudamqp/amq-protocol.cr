@@ -1,5 +1,5 @@
 module AMQ
   module Protocol
-    VERSION = {{ `shards version`.stringify }}
+    VERSION = "1.0.2"
   end
 end
