@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Properties#timestamp= now works as expected
+
+### Added
+
+- Try parse timestamp as milliseconds from epoch if seconds from epoch overflows
+
 ## [1.0.2] - 2022-02-01
 
 ### Changed
