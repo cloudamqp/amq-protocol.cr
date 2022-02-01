@@ -49,8 +49,7 @@ describe AMQ::Protocol::Properties do
 
   it "will raise when parsing invalid timestamp" do
     props = AMQ::Protocol::Properties.new(timestamp: Int64::MAX)
-
-    expect_raises(OverflowError) do
+    expect_raises(AMQ::Protocol::Error::FrameDecode) do
       props.timestamp
     end
   end

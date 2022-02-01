@@ -291,9 +291,21 @@ module AMQ
         )
       end
 
+      # Parse the timestamp_raw value into a `Time`.
+      # Assume it's in seconds since epoch, according to spec.
+      # If that fails assume it's stored as milliseconds.
+      # Else raise AMQ::Protocol::Error::DecodeFrame error.
       def timestamp : Time?
         if raw = @timestamp_raw
-          Time.unix(raw)
+          if Int32::MIN <= raw <= Int32::MAX
+            Time.unix(raw)
+          else
+            begin
+              Time.unix_ms(raw)
+            rescue ex : ArgumentError
+              raise Error::FrameDecode.new("Could not parse timestamp value #{raw}", cause: ex)
+            end
+          end
         end
       end
 
