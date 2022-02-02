@@ -92,7 +92,7 @@ module AMQ
           message_id = ShortString.from_bytes(bytes + pos, format); pos += 1 + message_id.bytesize
         end
         if flags & FLAG_TIMESTAMP > 0
-          timestamp = Time.unix(format.decode(Int64, bytes[pos, 8])); pos += 8
+          timestamp_raw = format.decode(Int64, bytes[pos, 8]); pos += 8
         end
         if flags & FLAG_TYPE > 0
           type = ShortString.from_bytes(bytes + pos, format); pos += 1 + type.bytesize
@@ -108,7 +108,7 @@ module AMQ
         end
         Properties.new(content_type, content_encoding, headers, delivery_mode,
           priority, correlation_id, reply_to, expiration,
-          message_id, timestamp, type, user_id, app_id, reserved1)
+          message_id, timestamp_raw, type, user_id, app_id, reserved1)
       end
 
       def self.from_io(io, format, bytesize = 2)
