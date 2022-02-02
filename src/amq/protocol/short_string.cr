@@ -21,6 +21,11 @@ module AMQ
         POOL.get(buf.to_unsafe, sz)
       end
 
+      def self.from_bytes(bytes, format = nil) : String
+        sz = bytes[0]
+        POOL.get((bytes + 1).to_unsafe, sz)
+      end
+
       def self.skip(io) : Nil
         sz = io.read_byte || raise IO::EOFError.new("Can't read short string")
         io.skip(sz)

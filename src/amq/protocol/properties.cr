@@ -54,6 +54,64 @@ module AMQ
         @timestamp_raw = timestamp.is_a?(Time) ? timestamp.to_unix : timestamp
       end
 
+      def self.from_bytes(bytes, format, bytesize = 2)
+        pos = 0
+        flags = format.decode(UInt16, bytes[pos, 2]); pos += 2
+        invalid = false
+        invalid ||= flags & 1_u16 << 0 > 0
+        invalid ||= flags & 2_u16 << 0 > 0
+        if invalid
+          raise Error::FrameDecode.new("Invalid property flags")
+        end
+
+        if flags & FLAG_CONTENT_TYPE > 0
+          content_type = ShortString.from_bytes(bytes + pos, format); pos += 1 + content_type.bytesize
+        end
+        if flags & FLAG_CONTENT_ENCODING > 0
+          content_encoding = ShortString.from_bytes(bytes + pos, format); pos += 1 + content_encoding.bytesize
+        end
+        if flags & FLAG_HEADERS > 0
+          io = IO::Memory.new(bytes + pos, false)
+          headers = Table.from_io(io, format); pos += headers.bytesize
+        end
+        if flags & FLAG_DELIVERY_MODE > 0
+          delivery_mode = bytes[pos]; pos += 1
+        end
+        if flags & FLAG_PRIORITY > 0
+          priority = bytes[pos]; pos += 1
+        end
+        if flags & FLAG_CORRELATION_ID > 0
+          correlation_id = ShortString.from_bytes(bytes + pos, format); pos += 1 + correlation_id.bytesize
+        end
+        if flags & FLAG_REPLY_TO > 0
+          reply_to = ShortString.from_bytes(bytes + pos, format); pos += 1 + reply_to.bytesize
+        end
+        if flags & FLAG_EXPIRATION > 0
+          expiration = ShortString.from_bytes(bytes + pos, format); pos += 1 + expiration.bytesize
+        end
+        if flags & FLAG_MESSAGE_ID > 0
+          message_id = ShortString.from_bytes(bytes + pos, format); pos += 1 + message_id.bytesize
+        end
+        if flags & FLAG_TIMESTAMP > 0
+          timestamp = Time.unix(format.decode(Int64, bytes[pos, 8])); pos += 8
+        end
+        if flags & FLAG_TYPE > 0
+          type = ShortString.from_bytes(bytes + pos, format); pos += 1 + type.bytesize
+        end
+        if flags & FLAG_USER_ID > 0
+          user_id = ShortString.from_bytes(bytes + pos, format); pos += 1 + user_id.bytesize
+        end
+        if flags & FLAG_APP_ID > 0
+          app_id = ShortString.from_bytes(bytes + pos, format); pos += 1 + app_id.bytesize
+        end
+        if flags & FLAG_RESERVED1 > 0
+          reserved1 = ShortString.from_bytes(bytes + pos, format); pos += 1 + reserved1.bytesize
+        end
+        Properties.new(content_type, content_encoding, headers, delivery_mode,
+          priority, correlation_id, reply_to, expiration,
+          message_id, timestamp, type, user_id, app_id, reserved1)
+      end
+
       def self.from_io(io, format, bytesize = 2)
         flags = UInt16.from_io io, format
         invalid = false
