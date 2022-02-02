@@ -71,8 +71,7 @@ module AMQ
           content_encoding = ShortString.from_bytes(bytes + pos, format); pos += 1 + content_encoding.bytesize
         end
         if flags & FLAG_HEADERS > 0
-          io = IO::Memory.new(bytes + pos, false)
-          headers = Table.from_io(io, format); pos += headers.bytesize
+          headers = Table.from_bytes(bytes + pos, format); pos += headers.bytesize
         end
         if flags & FLAG_DELIVERY_MODE > 0
           delivery_mode = bytes[pos]; pos += 1
