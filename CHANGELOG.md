@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.5] - 2022-02-03
+
+### Changed
+
+- Table.from_bytes copies the bytes, so that it can be modified later on
+
 ## [1.0.4] - 2022-02-01
 
 ### Added
