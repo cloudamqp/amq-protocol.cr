@@ -181,9 +181,10 @@ module AMQ
         IO.copy(@io, io, @io.bytesize)
       end
 
-      def self.from_bytes(bytes, format, size : UInt32? = nil) : self
-        size ||= format.decode(UInt32, bytes)
-        mem = IO::Memory.new(bytes[4, size], false)
+      def self.from_bytes(bytes, format) : self
+        size = format.decode(UInt32, bytes[0, 4])
+        mem = IO::Memory.new(size)
+        mem.write(bytes[4, size])
         self.new(mem)
       end
 
