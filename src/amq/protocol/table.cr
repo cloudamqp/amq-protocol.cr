@@ -201,6 +201,8 @@ module AMQ
 
       private def write_field(value)
         case value
+        when JSON::Any
+          write_field(value.raw)
         when Bool
           @io.write_byte 't'.ord.to_u8
           @io.write_byte(value ? 1_u8 : 0_u8)

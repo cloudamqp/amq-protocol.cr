@@ -1,3 +1,4 @@
+require "json/any"
 require "./table"
 
 module AMQ
@@ -21,6 +22,7 @@ module AMQ
                   NamedTuple(key: Symbol) |
                   Array(Field) |
                   Bytes |
-                  Array(Table)
+                  Array(Table) |
+                  JSON::Any
   end
 end

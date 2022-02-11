@@ -1,4 +1,5 @@
 require "./spec_helper"
+require "json"
 
 describe AMQ::Protocol::Table do
   it "can be encoded and decoded" do
@@ -46,7 +47,7 @@ describe AMQ::Protocol::Table do
   end
 
   it "can be modified" do
-    tbl = AMQ::Protocol::Table.new({ "key" => "value" })
+    tbl = AMQ::Protocol::Table.new({"key" => "value"})
     tbl.bytesize.should eq(sizeof(UInt32) + 1 + "key".bytesize + 1 + sizeof(UInt32) + "value".bytesize)
     tbl["key"] = 1
     tbl.bytesize.should eq(sizeof(UInt32) + 1 + "key".bytesize + 1 + sizeof(Int32))
@@ -61,21 +62,32 @@ describe AMQ::Protocol::Table do
   it "comparision is semantic not per byte" do
     t1 = AMQ::Protocol::Table.new(Hash(String, AMQ::Protocol::Field){
       "a" => 1_u8,
-      "b" => 1_u8
+      "b" => 1_u8,
     })
     t2 = AMQ::Protocol::Table.new(Hash(String, AMQ::Protocol::Field){
       "b" => 1_i32,
-      "a" => 1_i64
+      "a" => 1_i64,
     })
     t1.should eq t2
   end
 
   it "can be created from namedtuple" do
-    t1 = AMQ::Protocol::Table.new({ b: 1_i32, a: 1_i64 })
+    t1 = AMQ::Protocol::Table.new({b: 1_i32, a: 1_i64})
     t2 = AMQ::Protocol::Table.new(Hash(String, AMQ::Protocol::Field){
       "b" => 1_i32,
-      "a" => 1_i64
+      "a" => 1_i64,
     })
     t1.should eq t2
+  end
+
+  it "can be encoded and decoded JSON::Any" do
+    data = JSON.parse("{ \"a\": 1, \"b\": \"string\", \"c\": 0.2, \"d\": [1,2], \"e\": null }").as_h
+    tbl = AMQ::Protocol::Table.new(data)
+    io = IO::Memory.new
+    io.write_bytes tbl, IO::ByteFormat::NetworkEndian
+    io.pos.should eq(tbl.bytesize)
+    io.pos = 0
+    data2 = AMQ::Protocol::Table.from_io(io, IO::ByteFormat::NetworkEndian)
+    data2.should eq tbl
   end
 end
