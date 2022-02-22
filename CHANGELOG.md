@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.6] - 2022-02-22
+
+### Added
+
+- Support for JSON::Any in Tables
+
 ## [1.0.5] - 2022-02-03
 
 ### Changed
