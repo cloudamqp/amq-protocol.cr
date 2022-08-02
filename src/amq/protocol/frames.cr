@@ -230,16 +230,16 @@ module AMQ
 
           def initialize(@version_major = 0_u8, @version_minor = 9_u8,
                          @server_properties = Table.new({
-                           "capabilities" => {
-                             "publisher_confirms"           => true,
-                             "exchange_exchange_bindings"   => true,
-                             "basic.nack"                   => true,
-                             "per_consumer_qos"             => true,
-                             "authentication_failure_close" => true,
-                             "consumer_cancel_notify"       => true,
-                             "connection.blocked"           => true,
-                           } of String => Field,
-                         } of String => Field),
+                           capabilities: {
+                             "publisher_confirms":           true,
+                             "exchange_exchange_bindings":   true,
+                             "basic.nack":                   true,
+                             "per_consumer_qos":             true,
+                             "authentication_failure_close": true,
+                             "consumer_cancel_notify":       true,
+                             "connection.blocked":           true,
+                           },
+                         }),
                          @mechanisms = "AMQPLAIN PLAIN",
                          @locales = "en_US",
                          bytesize : UInt32? = nil)
