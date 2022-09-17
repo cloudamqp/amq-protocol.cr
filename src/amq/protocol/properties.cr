@@ -218,41 +218,90 @@ module AMQ
         flags = flags | FLAG_USER_ID if @user_id
         flags = flags | FLAG_APP_ID if @app_id
         flags = flags | FLAG_RESERVED1 if @reserved1
-
         io.write_bytes(flags, format)
 
-        io.write_bytes ShortString.new(@content_type.not_nil!), format if @content_type
-        io.write_bytes ShortString.new(@content_encoding.not_nil!), format if @content_encoding
-        io.write_bytes @headers.not_nil!, format if @headers
-        io.write_byte @delivery_mode.not_nil! if @delivery_mode
-        io.write_byte @priority.not_nil! if @priority
-        io.write_bytes ShortString.new(@correlation_id.not_nil!), format if @correlation_id
-        io.write_bytes ShortString.new(@reply_to.not_nil!), format if @reply_to
-        io.write_bytes ShortString.new(@expiration.not_nil!), format if @expiration
-        io.write_bytes ShortString.new(@message_id.not_nil!), format if @message_id
-        io.write_bytes @timestamp_raw.not_nil!, format if @timestamp_raw
-        io.write_bytes ShortString.new(@type.not_nil!), format if @type
-        io.write_bytes ShortString.new(@user_id.not_nil!), format if @user_id
-        io.write_bytes ShortString.new(@app_id.not_nil!), format if @app_id
-        io.write_bytes ShortString.new(@reserved1.not_nil!), format if @reserved1
+        if s = @content_type
+          io.write_bytes ShortString.new(s), format
+        end
+        if s = @content_encoding
+          io.write_bytes ShortString.new(s), format
+        end
+        if h = @headers
+          io.write_bytes h, format
+        end
+        if dm = @delivery_mode
+          io.write_byte dm
+        end
+        if p = @priority
+          io.write_byte p
+        end
+        if s = @correlation_id
+          io.write_bytes ShortString.new(s), format
+        end
+        if s = @reply_to
+          io.write_bytes ShortString.new(s), format
+        end
+        if s = @expiration
+          io.write_bytes ShortString.new(s), format
+        end
+        if s = @message_id
+          io.write_bytes ShortString.new(s), format
+        end
+        if ts = @timestamp_raw
+          io.write_bytes ts, format
+        end
+        if s = @type
+          io.write_bytes ShortString.new(s), format
+        end
+        if s = @user_id
+          io.write_bytes ShortString.new(s), format
+        end
+        if s = @app_id
+          io.write_bytes ShortString.new(s), format
+        end
+        if s = @reserved1
+          io.write_bytes ShortString.new(s), format
+        end
       end
 
       def bytesize
         size = 2
-        size += 1 + @content_type.not_nil!.bytesize if @content_type
-        size += 1 + @content_encoding.not_nil!.bytesize if @content_encoding
-        size += @headers.not_nil!.bytesize if @headers
+        if v = @content_type
+          size += 1 + v.bytesize
+        end
+        if v = @content_encoding
+          size += 1 + v.bytesize
+        end
+        if v = @headers
+          size += v.bytesize
+        end
         size += 1 if @delivery_mode
         size += 1 if @priority
-        size += 1 + @correlation_id.not_nil!.bytesize if @correlation_id
-        size += 1 + @reply_to.not_nil!.bytesize if @reply_to
-        size += 1 + @expiration.not_nil!.bytesize if @expiration
-        size += 1 + @message_id.not_nil!.bytesize if @message_id
+        if v = @correlation_id
+          size += 1 + v.bytesize
+        end
+        if v = @reply_to
+          size += 1 + v.bytesize
+        end
+        if v = @expiration
+          size += 1 + v.bytesize
+        end
+        if v = @message_id
+          size += 1 + v.bytesize
+        end
         size += sizeof(Int64) if @timestamp_raw
-        size += 1 + @type.not_nil!.bytesize if @type
-        size += 1 + @user_id.not_nil!.bytesize if @user_id
-        size += 1 + @app_id.not_nil!.bytesize if @app_id
-        size += 1 + @reserved1.not_nil!.bytesize if @reserved1
+        if v = @type
+          size += 1 + v.bytesize
+        end
+        if v = @user_id
+          size += 1 + v.bytesize
+        end
+        if v = @app_id
+          size += 1 + v.bytesize
+        end
+        if v = @reserved1
+          size += 1 + v.bytesize
+        end
         size
       end
 
