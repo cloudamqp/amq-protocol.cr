@@ -10,9 +10,12 @@ module AMQ
       abstract def type : UInt8
 
       def wrap(io, format : IO::ByteFormat) : Nil
-        io.write_byte type
-        io.write_bytes @channel, format
-        io.write_bytes @bytesize, format
+        buf = uninitialized UInt8[7]
+        buf[0] = type
+        slice = buf.to_slice
+        format.encode @channel, slice[1, 2]
+        format.encode @bytesize, slice[3, 4]
+        io.write slice
         yield
         io.write_byte 206_u8
       end
@@ -66,9 +69,12 @@ module AMQ
 
         def to_io(io : IO, format : IO::ByteFormat)
           wrap(io, format) do
-            io.write_bytes @class_id, format
-            io.write_bytes @weight, format
-            io.write_bytes @body_size, format
+            buf = uninitialized UInt8[12]
+            slice = buf.to_slice
+            format.encode @class_id, slice[0, 2]
+            format.encode @weight, slice[2, 2]
+            format.encode @body_size, slice[4, 8]
+            io.write slice
             io.write_bytes @properties, format
           end
         end
@@ -164,8 +170,11 @@ module AMQ
 
         def wrap(io, format)
           super(io, format) do
-            io.write_bytes class_id, format
-            io.write_bytes method_id, format
+            buf = uninitialized UInt8[4]
+            slice = buf.to_slice
+            format.encode(class_id, slice[0, 2])
+            format.encode(method_id, slice[2, 2])
+            io.write slice
             yield
           end
         end
