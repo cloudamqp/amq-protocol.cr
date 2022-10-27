@@ -111,15 +111,11 @@ module AMQ
           message_id, timestamp_raw, type, user_id, app_id, reserved1)
       end
 
-      def self.from_io(io, format, bytesize = 2)
-        flags = UInt16.from_io io, format
+      def self.from_io(io, format, flags = UInt16.from_io(io, format))
         invalid = false
         invalid ||= flags & 1_u16 << 0 > 0
         invalid ||= flags & 2_u16 << 0 > 0
-        if invalid
-          io.skip(bytesize - 2)
-          raise Error::FrameDecode.new("Invalid property flags")
-        end
+        raise Error::FrameDecode.new("Invalid property flags") if invalid
         content_type = ShortString.from_io(io, format) if flags & FLAG_CONTENT_TYPE > 0
         content_encoding = ShortString.from_io(io, format) if flags & FLAG_CONTENT_ENCODING > 0
         headers = Table.from_io(io, format) if flags & FLAG_HEADERS > 0

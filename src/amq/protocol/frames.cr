@@ -18,9 +18,12 @@ module AMQ
       end
 
       def self.from_io(io, format = IO::ByteFormat::NetworkEndian, &block : Frame -> _)
-        type = io.read_byte || raise(IO::EOFError.new)
-        channel = UInt16.from_io(io, format)
-        size = UInt32.from_io(io, format)
+        buf = uninitialized UInt8[7]
+        slice = buf.to_slice
+        io.read_fully(slice)
+        type = slice[0]
+        channel = format.decode(UInt16, slice[1, 2])
+        size = format.decode(UInt32, slice[3, 4])
         frame =
           case type
           when Method::TYPE    then Method.from_io(channel, size, io, format)
@@ -34,7 +37,7 @@ module AMQ
         begin
           result = yield frame
           if (frame_end = io.read_byte) && frame_end != 206_u8
-            raise Error::InvalidFrameEnd.new("#{frame.class}-end was #{frame_end.to_s}, expected 206")
+            raise Error::InvalidFrameEnd.new("#{frame.class}-end was #{frame_end}, expected 206")
           end
           result
         rescue ex
@@ -71,10 +74,14 @@ module AMQ
         end
 
         def self.from_io(channel, bytesize, io, format)
-          class_id = UInt16.from_io(io, format)
-          weight = UInt16.from_io(io, format)
-          body_size = UInt64.from_io(io, format)
-          props = Properties.from_io(io, format, bytesize - 2 - 2 - 8)
+          buf = uninitialized UInt8[14]
+          slice = buf.to_slice
+          io.read_fully(slice)
+          class_id = format.decode(UInt16, slice[0, 2])
+          weight = format.decode(UInt16, slice[2, 2])
+          body_size = format.decode(UInt64, slice[4, 8])
+          property_flags = format.decode(UInt16, slice[12, 2])
+          props = Properties.from_io(io, format, property_flags)
           self.new channel, class_id, weight, body_size, props, bytesize
         end
       end
@@ -163,19 +170,104 @@ module AMQ
           end
         end
 
+        # ameba:disable Metrics/CyclomaticComplexity
         def self.from_io(channel, bytesize, io, format)
-          class_id = UInt16.from_io(io, format)
-          bytesize -= sizeof(UInt16)
+          buf = uninitialized UInt8[4]
+          slice = buf.to_slice
+          io.read_fully(slice)
+          class_id = format.decode(UInt16, slice[0, 2])
+          method_id = format.decode(UInt16, slice[2, 2])
+          bytesize -= 4
           case class_id
-          when 10_u16 then Connection.from_io(channel, bytesize, io, format)
-          when 20_u16 then Channel.from_io(channel, bytesize, io, format)
-          when 40_u16 then Exchange.from_io(channel, bytesize, io, format)
-          when 50_u16 then Queue.from_io(channel, bytesize, io, format)
-          when 60_u16 then Basic.from_io(channel, bytesize, io, format)
-          when 85_u16 then Confirm.from_io(channel, bytesize, io, format)
-          when 90_u16 then Tx.from_io(channel, bytesize, io, format)
+          when 10_u16
+            case method_id
+            when 10_u16 then Connection::Start.from_io(io, bytesize, format)
+            when 11_u16 then Connection::StartOk.from_io(io, bytesize, format)
+            when 30_u16 then Connection::Tune.from_io(io, bytesize, format)
+            when 31_u16 then Connection::TuneOk.from_io(io, bytesize, format)
+            when 40_u16 then Connection::Open.from_io(io, bytesize, format)
+            when 41_u16 then Connection::OpenOk.from_io(io, bytesize, format)
+            when 50_u16 then Connection::Close.from_io(io, bytesize, format)
+            when 51_u16 then Connection::CloseOk.from_io(io, bytesize, format)
+            when 60_u16 then Connection::Blocked.from_io(io, bytesize, format)
+            when 61_u16 then Connection::Unblocked.from_io(io, bytesize, format)
+            else             raise Error::NotImplemented.new(channel, class_id, method_id)
+            end
+          when 20_u16
+            case method_id
+            when 10_u16 then Channel::Open.from_io(channel, bytesize, io, format)
+            when 11_u16 then Channel::OpenOk.from_io(channel, bytesize, io, format)
+            when 20_u16 then Channel::Flow.from_io(channel, bytesize, io, format)
+            when 21_u16 then Channel::FlowOk.from_io(channel, bytesize, io, format)
+            when 40_u16 then Channel::Close.from_io(channel, bytesize, io, format)
+            when 41_u16 then Channel::CloseOk.from_io(channel, bytesize, io, format)
+            else             raise Error::NotImplemented.new(channel, class_id, method_id)
+            end
+          when 40_u16
+            case method_id
+            when 10_u16 then Exchange::Declare.from_io(channel, bytesize, io, format)
+            when 11_u16 then Exchange::DeclareOk.from_io(channel, bytesize, io, format)
+            when 20_u16 then Exchange::Delete.from_io(channel, bytesize, io, format)
+            when 21_u16 then Exchange::DeleteOk.from_io(channel, bytesize, io, format)
+            when 30_u16 then Exchange::Bind.from_io(channel, bytesize, io, format)
+            when 31_u16 then Exchange::BindOk.from_io(channel, bytesize, io, format)
+            when 40_u16 then Exchange::Unbind.from_io(channel, bytesize, io, format)
+            when 51_u16 then Exchange::UnbindOk.from_io(channel, bytesize, io, format)
+            else             raise Error::NotImplemented.new(channel, class_id, method_id)
+            end
+          when 50_u16
+            case method_id
+            when 10_u16 then Queue::Declare.from_io(channel, bytesize, io, format)
+            when 11_u16 then Queue::DeclareOk.from_io(channel, bytesize, io, format)
+            when 20_u16 then Queue::Bind.from_io(channel, bytesize, io, format)
+            when 21_u16 then Queue::BindOk.from_io(channel, bytesize, io, format)
+            when 30_u16 then Queue::Purge.from_io(channel, bytesize, io, format)
+            when 31_u16 then Queue::PurgeOk.from_io(channel, bytesize, io, format)
+            when 40_u16 then Queue::Delete.from_io(channel, bytesize, io, format)
+            when 41_u16 then Queue::DeleteOk.from_io(channel, bytesize, io, format)
+            when 50_u16 then Queue::Unbind.from_io(channel, bytesize, io, format)
+            when 51_u16 then Queue::UnbindOk.from_io(channel, bytesize, io, format)
+            else             raise Error::NotImplemented.new(channel, class_id, method_id)
+            end
+          when 60_u16
+            case method_id
+            when  10_u16 then Basic::Qos.from_io(channel, bytesize, io, format)
+            when  11_u16 then Basic::QosOk.from_io(channel, bytesize, io, format)
+            when  20_u16 then Basic::Consume.from_io(channel, bytesize, io, format)
+            when  21_u16 then Basic::ConsumeOk.from_io(channel, bytesize, io, format)
+            when  30_u16 then Basic::Cancel.from_io(channel, bytesize, io, format)
+            when  31_u16 then Basic::CancelOk.from_io(channel, bytesize, io, format)
+            when  40_u16 then Basic::Publish.from_io(channel, bytesize, io, format)
+            when  50_u16 then Basic::Return.from_io(channel, bytesize, io, format)
+            when  60_u16 then Basic::Deliver.from_io(channel, bytesize, io, format)
+            when  70_u16 then Basic::Get.from_io(channel, bytesize, io, format)
+            when  71_u16 then Basic::GetOk.from_io(channel, bytesize, io, format)
+            when  72_u16 then Basic::GetEmpty.from_io(channel, bytesize, io, format)
+            when  80_u16 then Basic::Ack.from_io(channel, bytesize, io, format)
+            when  90_u16 then Basic::Reject.from_io(channel, bytesize, io, format)
+            when 110_u16 then Basic::Recover.from_io(channel, bytesize, io, format)
+            when 111_u16 then Basic::RecoverOk.from_io(channel, bytesize, io, format)
+            when 120_u16 then Basic::Nack.from_io(channel, bytesize, io, format)
+            else              raise Error::NotImplemented.new(channel, class_id, method_id)
+            end
+          when 85_u16
+            case method_id
+            when 10_u16 then Confirm::Select.from_io(channel, bytesize, io, format)
+            when 11_u16 then Confirm::SelectOk.from_io(channel, bytesize, io, format)
+            else             raise Error::NotImplemented.new(channel, class_id, method_id)
+            end
+          when 90_u16
+            case method_id
+            when 10_u16 then Tx::Select.from_io(channel, bytesize, io, format)
+            when 11_u16 then Tx::SelectOk.from_io(channel, bytesize, io, format)
+            when 20_u16 then Tx::Commit.from_io(channel, bytesize, io, format)
+            when 21_u16 then Tx::CommitOk.from_io(channel, bytesize, io, format)
+            when 30_u16 then Tx::Rollback.from_io(channel, bytesize, io, format)
+            when 31_u16 then Tx::RollbackOk.from_io(channel, bytesize, io, format)
+            else             raise Error::NotImplemented.new(channel, class_id, method_id)
+            end
           else
-            raise Error::NotImplemented.new(channel, class_id, 0_u16)
+            raise Error::NotImplemented.new(channel, class_id, method_id)
           end
         end
       end
@@ -189,24 +281,6 @@ module AMQ
 
         def initialize(bytesize : UInt32 = 0_u32)
           super(0_u16, bytesize)
-        end
-
-        def self.from_io(channel, bytesize, io, format)
-          method_id = UInt16.from_io(io, format)
-          bytesize -= sizeof(UInt16)
-          case method_id
-          when 10_u16 then Start.from_io(io, bytesize, format)
-          when 11_u16 then StartOk.from_io(io, bytesize, format)
-          when 30_u16 then Tune.from_io(io, bytesize, format)
-          when 31_u16 then TuneOk.from_io(io, bytesize, format)
-          when 40_u16 then Open.from_io(io, bytesize, format)
-          when 41_u16 then OpenOk.from_io(io, bytesize, format)
-          when 50_u16 then Close.from_io(io, bytesize, format)
-          when 51_u16 then CloseOk.from_io(io, bytesize, format)
-          when 60_u16 then Blocked.from_io(io, bytesize, format)
-          when 61_u16 then Unblocked.from_io(io, bytesize, format)
-          else             raise Error::NotImplemented.new(channel, CLASS_ID, method_id)
-          end
         end
 
         struct Start < Connection
@@ -502,20 +576,6 @@ module AMQ
           CLASS_ID
         end
 
-        def self.from_io(channel, bytesize, io, format)
-          method_id = UInt16.from_io(io, format)
-          bytesize -= sizeof(UInt16)
-          case method_id
-          when 10_u16 then Open.from_io(channel, bytesize, io, format)
-          when 11_u16 then OpenOk.from_io(channel, bytesize, io, format)
-          when 20_u16 then Flow.from_io(channel, bytesize, io, format)
-          when 21_u16 then FlowOk.from_io(channel, bytesize, io, format)
-          when 40_u16 then Close.from_io(channel, bytesize, io, format)
-          when 41_u16 then CloseOk.from_io(channel, bytesize, io, format)
-          else             raise Error::NotImplemented.new(channel, CLASS_ID, method_id)
-          end
-        end
-
         struct Open < Channel
           METHOD_ID = 10_u16
 
@@ -673,22 +733,6 @@ module AMQ
 
         def class_id : UInt16
           CLASS_ID
-        end
-
-        def self.from_io(channel, bytesize, io, format)
-          method_id = UInt16.from_io(io, format)
-          bytesize -= sizeof(UInt16)
-          case method_id
-          when 10_u16 then Declare.from_io(channel, bytesize, io, format)
-          when 11_u16 then DeclareOk.from_io(channel, bytesize, io, format)
-          when 20_u16 then Delete.from_io(channel, bytesize, io, format)
-          when 21_u16 then DeleteOk.from_io(channel, bytesize, io, format)
-          when 30_u16 then Bind.from_io(channel, bytesize, io, format)
-          when 31_u16 then BindOk.from_io(channel, bytesize, io, format)
-          when 40_u16 then Unbind.from_io(channel, bytesize, io, format)
-          when 51_u16 then UnbindOk.from_io(channel, bytesize, io, format)
-          else             raise Error::NotImplemented.new(channel, CLASS_ID, method_id)
-          end
         end
 
         struct Declare < Exchange
@@ -927,24 +971,6 @@ module AMQ
 
         def class_id : UInt16
           CLASS_ID
-        end
-
-        def self.from_io(channel, bytesize, io, format)
-          method_id = UInt16.from_io(io, format)
-          bytesize -= sizeof(UInt16)
-          case method_id
-          when 10_u16 then Declare.from_io(channel, bytesize, io, format)
-          when 11_u16 then DeclareOk.from_io(channel, bytesize, io, format)
-          when 20_u16 then Bind.from_io(channel, bytesize, io, format)
-          when 21_u16 then BindOk.from_io(channel, bytesize, io, format)
-          when 30_u16 then Purge.from_io(channel, bytesize, io, format)
-          when 31_u16 then PurgeOk.from_io(channel, bytesize, io, format)
-          when 40_u16 then Delete.from_io(channel, bytesize, io, format)
-          when 41_u16 then DeleteOk.from_io(channel, bytesize, io, format)
-          when 50_u16 then Unbind.from_io(channel, bytesize, io, format)
-          when 51_u16 then UnbindOk.from_io(channel, bytesize, io, format)
-          else             raise Error::NotImplemented.new(channel, CLASS_ID, method_id)
-          end
         end
 
         struct Declare < Queue
@@ -1265,32 +1291,6 @@ module AMQ
 
         def class_id : UInt16
           CLASS_ID
-        end
-
-        def self.from_io(channel, bytesize, io, format)
-          method_id = UInt16.from_io(io, format)
-          bytesize -= sizeof(UInt16)
-          case method_id
-          when 10_u16 then Qos.from_io(channel, bytesize, io, format)
-          when 11_u16 then QosOk.from_io(channel, bytesize, io, format)
-          when 20_u16 then Consume.from_io(channel, bytesize, io, format)
-          when 21_u16 then ConsumeOk.from_io(channel, bytesize, io, format)
-          when 30_u16 then Cancel.from_io(channel, bytesize, io, format)
-          when 31_u16 then CancelOk.from_io(channel, bytesize, io, format)
-          when 40_u16 then Publish.from_io(channel, bytesize, io, format)
-          when 50_u16 then Return.from_io(channel, bytesize, io, format)
-          when 60_u16 then Deliver.from_io(channel, bytesize, io, format)
-          when 70_u16 then Get.from_io(channel, bytesize, io, format)
-          when 71_u16 then GetOk.from_io(channel, bytesize, io, format)
-          when 72_u16 then GetEmpty.from_io(channel, bytesize, io, format)
-          when 80_u16 then Ack.from_io(channel, bytesize, io, format)
-          when 90_u16 then Reject.from_io(channel, bytesize, io, format)
-            # when 100_u16 then RecoverAsync.from_io(channel, io, format)
-          when 110_u16 then Recover.from_io(channel, bytesize, io, format)
-          when 111_u16 then RecoverOk.from_io(channel, bytesize, io, format)
-          when 120_u16 then Nack.from_io(channel, bytesize, io, format)
-          else              raise Error::NotImplemented.new(channel, CLASS_ID, method_id)
-          end
         end
 
         struct Publish < Basic
@@ -1804,16 +1804,6 @@ module AMQ
           CLASS_ID
         end
 
-        def self.from_io(channel, bytesize, io, format)
-          method_id = UInt16.from_io(io, format)
-          bytesize -= sizeof(UInt16)
-          case method_id
-          when 10_u16 then Select.from_io(channel, bytesize, io, format)
-          when 11_u16 then SelectOk.from_io(channel, bytesize, io, format)
-          else             raise Error::NotImplemented.new(channel, CLASS_ID, method_id)
-          end
-        end
-
         struct Select < Confirm
           METHOD_ID = 10_u16
 
@@ -1860,20 +1850,6 @@ module AMQ
 
         def class_id : UInt16
           CLASS_ID
-        end
-
-        def self.from_io(channel, bytesize, io, format)
-          method_id = UInt16.from_io(io, format)
-          bytesize -= sizeof(UInt16)
-          case method_id
-          when 10_u16 then Select.from_io(channel, bytesize, io, format)
-          when 11_u16 then SelectOk.from_io(channel, bytesize, io, format)
-          when 20_u16 then Commit.from_io(channel, bytesize, io, format)
-          when 21_u16 then CommitOk.from_io(channel, bytesize, io, format)
-          when 30_u16 then Rollback.from_io(channel, bytesize, io, format)
-          when 31_u16 then RollbackOk.from_io(channel, bytesize, io, format)
-          else             raise Error::NotImplemented.new(channel, CLASS_ID, method_id)
-          end
         end
 
         struct Select < Tx
