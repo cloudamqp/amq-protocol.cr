@@ -1486,14 +1486,20 @@ module AMQ
 
           def to_io(io, format)
             wrap(io, format) do
-              io.write_bytes(@delivery_tag, format)
-              io.write_byte @multiple ? 1_u8 : 0_u8
+              buf = uninitialized UInt8[9]
+              slice = buf.to_slice
+              format.encode(@delivery_tag, slice)
+              buf[8] = @multiple ? 1u8 : 0u8
+              io.write slice
             end
           end
 
           def self.from_io(channel, bytesize, io, format)
-            delivery_tag = UInt64.from_io(io, format)
-            multiple = (io.read_byte || raise IO::EOFError.new) > 0
+            buf = uninitialized UInt8[9]
+            slice = buf.to_slice
+            io.read_fully(slice)
+            delivery_tag = format.decode(UInt64, slice)
+            multiple = slice[8] == 1u8
             self.new channel, delivery_tag, multiple
           end
         end
@@ -1513,14 +1519,20 @@ module AMQ
 
           def to_io(io, format)
             wrap(io, format) do
-              io.write_bytes(@delivery_tag, format)
-              io.write_byte @requeue ? 1_u8 : 0_u8
+              buf = uninitialized UInt8[9]
+              slice = buf.to_slice
+              format.encode(@delivery_tag, slice)
+              buf[8] = @requeue ? 1u8 : 0u8
+              io.write slice
             end
           end
 
           def self.from_io(channel, bytesize, io, format)
-            delivery_tag = UInt64.from_io(io, format)
-            requeue = (io.read_byte || raise IO::EOFError.new) > 0
+            buf = uninitialized UInt8[9]
+            slice = buf.to_slice
+            io.read_fully(slice)
+            delivery_tag = format.decode(UInt64, slice)
+            requeue = slice[8] == 1u8
             self.new channel, delivery_tag, requeue
           end
         end
@@ -1540,19 +1552,21 @@ module AMQ
 
           def to_io(io, format)
             wrap(io, format) do
-              io.write_bytes(@delivery_tag, format)
-              bits = 0_u8
-              bits = bits | (1 << 0) if @multiple
-              bits = bits | (1 << 1) if @requeue
-              io.write_byte(bits)
+              buf = uninitialized UInt8[9]
+              slice = buf.to_slice
+              format.encode(@delivery_tag, slice)
+              buf[8] = @multiple && @requeue ? 3u8 : @requeue ? 2u8 : @multiple ? 1u8 : 0u8
+              io.write slice
             end
           end
 
           def self.from_io(channel, bytesize, io, format)
-            delivery_tag = UInt64.from_io(io, format)
-            bits = io.read_byte || raise IO::EOFError.new
-            multiple = bits.bit(0) == 1
-            requeue = bits.bit(1) == 1
+            buf = uninitialized UInt8[9]
+            slice = buf.to_slice
+            io.read_fully(slice)
+            delivery_tag = format.decode(UInt64, slice)
+            multiple = slice[8].bit(0) == 1
+            requeue = slice[8].bit(1) == 1
             self.new channel, delivery_tag, multiple, requeue
           end
         end
