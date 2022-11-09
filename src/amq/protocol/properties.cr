@@ -3,21 +3,23 @@ require "./table"
 module AMQ
   module Protocol
     struct Properties
-      FLAG_CONTENT_TYPE     = 0x8000_u16
-      FLAG_CONTENT_ENCODING = 0x4000_u16
-      FLAG_HEADERS          = 0x2000_u16
-      FLAG_DELIVERY_MODE    = 0x1000_u16
-      FLAG_PRIORITY         = 0x0800_u16
-      FLAG_CORRELATION_ID   = 0x0400_u16
-      FLAG_REPLY_TO         = 0x0200_u16
-      FLAG_EXPIRATION       = 0x0100_u16
-      FLAG_MESSAGE_ID       = 0x0080_u16
-      FLAG_TIMESTAMP        = 0x0040_u16
-      FLAG_TYPE             = 0x0020_u16
-      FLAG_USER_ID          = 0x0010_u16
-      FLAG_APP_ID           = 0x0008_u16
-      FLAG_RESERVED1        = 0x0004_u16
-      FLAG_INVALID          = 0x0003_u16
+      @[Flags]
+      private enum Has : UInt16
+        ContentType     = 0x8000_u16
+        ContentEncoding = 0x4000_u16
+        Headers         = 0x2000_u16
+        DeliveryMode    = 0x1000_u16
+        Priority        = 0x0800_u16
+        CorrelationID   = 0x0400_u16
+        ReplyTo         = 0x0200_u16
+        Expiration      = 0x0100_u16
+        MessageID       = 0x0080_u16
+        Timestamp       = 0x0040_u16
+        Type            = 0x0020_u16
+        UserID          = 0x0010_u16
+        AppID           = 0x0008_u16
+        Reserved1       = 0x0004_u16
+      end
 
       property content_type
       property content_encoding
@@ -55,51 +57,51 @@ module AMQ
         @timestamp_raw = timestamp.is_a?(Time) ? timestamp.to_unix : timestamp
       end
 
-      def self.from_bytes(bytes : Bytes, format : IO::ByteFormat) : self
-        flags = format.decode(UInt16, bytes[0, 2])
-        return self.new if flags.zero?
-        raise Error::FrameDecode.new("Invalid property flags (#{sprintf "%#b", flags})") if flags & FLAG_INVALID > 0
-        pos = 2
-        if flags & FLAG_CONTENT_TYPE > 0
+      def self.from_bytes(bytes : Bytes, format : IO::ByteFormat)
+        pos = 0
+        flags_int = format.decode(UInt16, bytes[pos, 2]); pos += 2
+        has = Has.from_value?(flags_int) || raise Error::FrameDecode.new("Invalid property flags")
+
+        if has.content_type?
           content_type = ShortString.from_bytes(bytes + pos, format); pos += 1 + content_type.bytesize
         end
-        if flags & FLAG_CONTENT_ENCODING > 0
+        if has.content_encoding?
           content_encoding = ShortString.from_bytes(bytes + pos, format); pos += 1 + content_encoding.bytesize
         end
-        if flags & FLAG_HEADERS > 0
+        if has.headers?
           headers = Table.from_bytes(bytes + pos, format); pos += headers.bytesize
         end
-        if flags & FLAG_DELIVERY_MODE > 0
+        if has.delivery_mode?
           delivery_mode = bytes[pos]; pos += 1
         end
-        if flags & FLAG_PRIORITY > 0
+        if has.priority?
           priority = bytes[pos]; pos += 1
         end
-        if flags & FLAG_CORRELATION_ID > 0
+        if has.correlation_id?
           correlation_id = ShortString.from_bytes(bytes + pos, format); pos += 1 + correlation_id.bytesize
         end
-        if flags & FLAG_REPLY_TO > 0
+        if has.reply_to?
           reply_to = ShortString.from_bytes(bytes + pos, format); pos += 1 + reply_to.bytesize
         end
-        if flags & FLAG_EXPIRATION > 0
+        if has.expiration?
           expiration = ShortString.from_bytes(bytes + pos, format); pos += 1 + expiration.bytesize
         end
-        if flags & FLAG_MESSAGE_ID > 0
+        if has.message_id?
           message_id = ShortString.from_bytes(bytes + pos, format); pos += 1 + message_id.bytesize
         end
-        if flags & FLAG_TIMESTAMP > 0
+        if has.timestamp?
           timestamp_raw = format.decode(Int64, bytes[pos, 8]); pos += 8
         end
-        if flags & FLAG_TYPE > 0
+        if has.type?
           type = ShortString.from_bytes(bytes + pos, format); pos += 1 + type.bytesize
         end
-        if flags & FLAG_USER_ID > 0
+        if has.user_id?
           user_id = ShortString.from_bytes(bytes + pos, format); pos += 1 + user_id.bytesize
         end
-        if flags & FLAG_APP_ID > 0
+        if has.app_id?
           app_id = ShortString.from_bytes(bytes + pos, format); pos += 1 + app_id.bytesize
         end
-        if flags & FLAG_RESERVED1 > 0
+        if has.reserved1?
           reserved1 = ShortString.from_bytes(bytes + pos, format); pos += 1 + reserved1.bytesize
         end
         self.new(content_type, content_encoding, headers, delivery_mode,
@@ -109,22 +111,22 @@ module AMQ
 
       def self.from_io(io, format, flags = UInt16.from_io(io, format)) : self
         return self.new if flags.zero?
-        raise Error::FrameDecode.new("Invalid property flags (#{sprintf "%#b", flags})") if flags & FLAG_INVALID > 0
-        content_type = ShortString.from_io(io, format) if flags & FLAG_CONTENT_TYPE > 0
-        content_encoding = ShortString.from_io(io, format) if flags & FLAG_CONTENT_ENCODING > 0
-        headers = Table.from_io(io, format) if flags & FLAG_HEADERS > 0
-        delivery_mode = io.read_byte if flags & FLAG_DELIVERY_MODE > 0
-        priority = io.read_byte if flags & FLAG_PRIORITY > 0
-        correlation_id = ShortString.from_io(io, format) if flags & FLAG_CORRELATION_ID > 0
-        reply_to = ShortString.from_io(io, format) if flags & FLAG_REPLY_TO > 0
-        expiration = ShortString.from_io(io, format) if flags & FLAG_EXPIRATION > 0
-        message_id = ShortString.from_io(io, format) if flags & FLAG_MESSAGE_ID > 0
-        timestamp_raw = Int64.from_io(io, format) if flags & FLAG_TIMESTAMP > 0
-        type = ShortString.from_io(io, format) if flags & FLAG_TYPE > 0
-        user_id = ShortString.from_io(io, format) if flags & FLAG_USER_ID > 0
-        app_id = ShortString.from_io(io, format) if flags & FLAG_APP_ID > 0
-        reserved1 = ShortString.from_io(io, format) if flags & FLAG_RESERVED1 > 0
-        self.new(content_type, content_encoding, headers, delivery_mode,
+        has = Has.from_value?(flags) || raise Error::FrameDecode.new("Invalid property flags")
+        content_type = ShortString.from_io(io, format) if has.content_type?
+        content_encoding = ShortString.from_io(io, format) if has.content_encoding?
+        headers = Table.from_io(io, format) if has.headers?
+        delivery_mode = io.read_byte if has.delivery_mode?
+        priority = io.read_byte if has.priority?
+        correlation_id = ShortString.from_io(io, format) if has.correlation_id?
+        reply_to = ShortString.from_io(io, format) if has.reply_to?
+        expiration = ShortString.from_io(io, format) if has.expiration?
+        message_id = ShortString.from_io(io, format) if has.message_id?
+        timestamp_raw = Int64.from_io(io, format) if has.timestamp?
+        type = ShortString.from_io(io, format) if has.type?
+        user_id = ShortString.from_io(io, format) if has.user_id?
+        app_id = ShortString.from_io(io, format) if has.app_id?
+        reserved1 = ShortString.from_io(io, format) if has.reserved1?
+        Properties.new(content_type, content_encoding, headers, delivery_mode,
           priority, correlation_id, reply_to, expiration,
           message_id, timestamp_raw, type, user_id, app_id, reserved1)
       end
@@ -197,22 +199,22 @@ module AMQ
       end
 
       def to_io(io, format)
-        flags = 0_u16
-        flags = flags | FLAG_CONTENT_TYPE if @content_type
-        flags = flags | FLAG_CONTENT_ENCODING if @content_encoding
-        flags = flags | FLAG_HEADERS if @headers
-        flags = flags | FLAG_DELIVERY_MODE if @delivery_mode
-        flags = flags | FLAG_PRIORITY if @priority
-        flags = flags | FLAG_CORRELATION_ID if @correlation_id
-        flags = flags | FLAG_REPLY_TO if @reply_to
-        flags = flags | FLAG_EXPIRATION if @expiration
-        flags = flags | FLAG_MESSAGE_ID if @message_id
-        flags = flags | FLAG_TIMESTAMP if @timestamp_raw
-        flags = flags | FLAG_TYPE if @type
-        flags = flags | FLAG_USER_ID if @user_id
-        flags = flags | FLAG_APP_ID if @app_id
-        flags = flags | FLAG_RESERVED1 if @reserved1
-        io.write_bytes(flags, format)
+        has = Has::None
+        has |= Has::ContentType if @content_type
+        has |= Has::ContentEncoding if @content_encoding
+        has |= Has::Headers if @headers
+        has |= Has::DeliveryMode if @delivery_mode
+        has |= Has::Priority if @priority
+        has |= Has::CorrelationID if @correlation_id
+        has |= Has::ReplyTo if @reply_to
+        has |= Has::Expiration if @expiration
+        has |= Has::MessageID if @message_id
+        has |= Has::Timestamp if @timestamp_raw
+        has |= Has::Type if @type
+        has |= Has::UserID if @user_id
+        has |= Has::AppID if @app_id
+        has |= Has::Reserved1 if @reserved1
+        io.write_bytes(has.to_u16, format)
 
         if s = @content_type
           io.write_bytes ShortString.new(s), format
@@ -301,72 +303,72 @@ module AMQ
 
       def self.skip(io, format) : Int64
         flags = io.read_bytes UInt16, format
-        skipped = 2_i64 # sizeof UInt16
+        skipped = sizeof(UInt16).to_i64
         return skipped if flags.zero?
-        raise Error::FrameDecode.new("Invalid property flags (#{sprintf "%#b", flags})") if flags & FLAG_INVALID > 0
-        if flags & FLAG_CONTENT_TYPE > 0
+        has = Has.from_value?(flags) || raise Error::FrameDecode.new("Invalid property flags")
+        if has.content_type?
           len = io.read_byte || raise IO::EOFError.new
           io.skip(len)
           skipped += 1 + len
         end
-        if flags & FLAG_CONTENT_ENCODING > 0
+        if has.content_encoding?
           len = io.read_byte || raise IO::EOFError.new
           io.skip(len)
           skipped += 1 + len
         end
-        if flags & FLAG_HEADERS > 0
+        if has.headers?
           len = UInt32.from_io(io, format)
           io.skip(len)
           skipped += sizeof(UInt32) + len
         end
-        if flags & FLAG_DELIVERY_MODE > 0
+        if has.delivery_mode?
           io.skip(1)
           skipped += 1
         end
-        if flags & FLAG_PRIORITY > 0
+        if has.priority?
           io.skip(1)
           skipped += 1
         end
-        if flags & FLAG_CORRELATION_ID > 0
+        if has.correlation_id?
           len = io.read_byte || raise IO::EOFError.new
           io.skip(len)
           skipped += 1 + len
         end
-        if flags & FLAG_REPLY_TO > 0
+        if has.reply_to?
           len = io.read_byte || raise IO::EOFError.new
           io.skip(len)
           skipped += 1 + len
         end
-        if flags & FLAG_EXPIRATION > 0
+        if has.expiration?
           len = io.read_byte || raise IO::EOFError.new
           io.skip(len)
           skipped += 1 + len
         end
-        if flags & FLAG_MESSAGE_ID > 0
+        if has.message_id?
           len = io.read_byte || raise IO::EOFError.new
           io.skip(len)
           skipped += 1 + len
         end
-        if flags & FLAG_TIMESTAMP > 0
+        if has.timestamp?
           io.skip(sizeof(Int64))
           skipped += sizeof(Int64)
         end
-        if flags & FLAG_TYPE > 0
+        if has.type?
           len = io.read_byte || raise IO::EOFError.new
           io.skip(len)
           skipped += 1 + len
         end
-        if flags & FLAG_USER_ID > 0
+        if has.user_id?
           len = io.read_byte || raise IO::EOFError.new
           io.skip(len)
           skipped += 1 + len
         end
-        if flags & FLAG_APP_ID > 0
+        if has.app_id?
           len = io.read_byte || raise IO::EOFError.new
           io.skip(len)
           skipped += 1 + len
         end
-        if flags & FLAG_RESERVED1 > 0
+        if has.reserved1?
           len = io.read_byte || raise IO::EOFError.new
           io.skip(len)
           skipped += 1 + len
