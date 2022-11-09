@@ -30,7 +30,7 @@ jobs:
       - name: Shards install
         run: shards install
       - name: Spec
-        run: crystal spec --no-color --order random
+        run: crystal spec --order random
 
   format:
     name: Formatting
