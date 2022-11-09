@@ -1,0 +1,43 @@
+name: CI
+on: [push]
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    container: 84codes/crystal:latest-ubuntu-20.04
+
+    steps:
+      - name: Checkout ameba
+        uses: actions/checkout@v3
+        with:
+          repository: crystal-ameba/ameba
+          path: ameba
+      - name: Compile ameba
+        run: make -C ameba
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Lint
+        run: ameba/bin/ameba src
+
+  spec:
+    name: Spec
+    runs-on: ubuntu-latest
+    container: 84codes/crystal:latest-ubuntu-20.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Shards install
+        run: shards install
+      - name: Spec
+        run: crystal spec --no-color --order random
+
+  format:
+    name: Formatting
+    runs-on: ubuntu-latest
+    container: 84codes/crystal:latest-ubuntu-20.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Format check
+        run: crystal tool format --check
