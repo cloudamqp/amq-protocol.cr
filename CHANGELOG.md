@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.8] - 2022-11-14
+
+### Fixed
+
+- Removed the use of a StringPool in ShortStrings, to fix a multi threading issue and memory growth issues.
+
 ## [1.0.7] - 2022-10-28
 
 ### Changed
