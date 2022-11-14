@@ -1,10 +1,6 @@
-require "string_pool"
-
 module AMQ
   module Protocol
     struct ShortString
-      POOL = StringPool.new(256)
-
       def initialize(@str : String)
       end
 
@@ -15,15 +11,16 @@ module AMQ
       end
 
       def self.from_io(io, format = nil) : String
-        sz = io.read_byte || raise IO::EOFError.new("Can't read short string")
         buf = uninitialized UInt8[256]
+        io.read(buf.to_slice[0, 1]) == 1 || raise IO::EOFError.new("Can't read short string")
+        sz = buf[0]
         io.read_fully(buf.to_slice[0, sz])
-        POOL.get(buf.to_unsafe, sz)
+        String.new(buf.to_unsafe, sz)
       end
 
       def self.from_bytes(bytes, format = nil) : String
         sz = bytes[0]
-        POOL.get((bytes + 1).to_unsafe, sz)
+        String.new((bytes + 1).to_unsafe, sz)
       end
 
       def self.skip(io) : Nil
