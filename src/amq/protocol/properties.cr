@@ -135,7 +135,7 @@ module AMQ
           message_id, timestamp_raw, type, user_id, app_id, reserved1)
       end
 
-      def self.from_json(data : JSON::Any)
+      def self.from_json(data : JSON::Any) : self
         p = Properties.new
         p.content_type = data["content_type"]?.try(&.as_s)
         p.content_encoding = data["content_encoding"]?.try(&.as_s)
@@ -154,29 +154,6 @@ module AMQ
         p.app_id = data["app_id"]?.try(&.as_s)
         p.reserved1 = data["reserved"]?.try(&.as_s)
         p
-      end
-
-      # https://github.com/crystal-lang/crystal/issues/4885#issuecomment-325109328
-      def self.cast_to_field(x : Array) : Field
-        x.map { |e| cast_to_field(e).as(Field) }.as(Field)
-      end
-
-      def self.cast_to_field(x : Hash) : Field
-        h = Hash(String, Field).new
-        x.each do |(k, v)|
-          h[k] = cast_to_field(v).as(Field)
-        end
-        h
-      end
-
-      def self.cast_to_field(x : JSON::Any) : Field
-        if a = x.as_a?
-          cast_to_field(a)
-        elsif h = x.as_h?
-          cast_to_field(h)
-        else
-          x.raw.as(Field)
-        end
       end
 
       def to_json(json : JSON::Builder)

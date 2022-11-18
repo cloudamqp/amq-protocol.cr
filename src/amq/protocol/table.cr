@@ -126,7 +126,7 @@ module AMQ
         h
       end
 
-      def to_json(json)
+      def to_json(json : JSON::Builder)
         json.object do
           @io.rewind
           while @io.pos < @io.bytesize
