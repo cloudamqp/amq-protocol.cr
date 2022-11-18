@@ -1,4 +1,5 @@
 require "./spec_helper"
+require "json"
 
 describe AMQ::Protocol::Properties do
   it "can be encoded and decoded from io" do
@@ -77,5 +78,12 @@ describe AMQ::Protocol::Properties do
     props = AMQ::Protocol::Properties.new
     props.timestamp = nil
     props.timestamp.should be_nil
+  end
+
+  it "can be parsed from json" do
+    json = JSON.parse(%({"content_type": "application/json", "headers": {"a": 1}}))
+    props = AMQ::Protocol::Properties.from_json(json)
+    props.content_type.should eq "application/json"
+    props.headers.not_nil!["a"].should eq 1
   end
 end

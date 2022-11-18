@@ -139,8 +139,7 @@ module AMQ
         p = Properties.new
         p.content_type = data["content_type"]?.try(&.as_s)
         p.content_encoding = data["content_encoding"]?.try(&.as_s)
-        p.headers = data["headers"]?.try(&.as_h?)
-          .try { |hdrs| Table.new self.cast_to_field(hdrs).as(Hash(String, Field)) }
+        p.headers = data["headers"]?.try(&.as_h?).try { |hdrs| Table.new hdrs }
         p.delivery_mode = data["delivery_mode"]?.try(&.as_i?.try(&.to_u8))
         p.priority = data["priority"]?.try(&.as_i?.try(&.to_u8))
         p.correlation_id = data["correlation_id"]?.try(&.as_s)
