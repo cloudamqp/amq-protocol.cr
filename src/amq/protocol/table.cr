@@ -121,7 +121,7 @@ module AMQ
         h = Hash(String, Field).new
         while @io.pos < @io.bytesize
           k = ShortString.from_io(@io)
-          h[k] = read_field(table_to_h: true)
+          h[k] = read_field
         end
         h
       end
@@ -131,7 +131,7 @@ module AMQ
           @io.rewind
           while @io.pos < @io.bytesize
             key = ShortString.from_io(@io)
-            value = read_field
+            value = read_field(table_to_h: false)
             json.field key, value
           end
         end
@@ -144,7 +144,7 @@ module AMQ
         while @io.pos < @io.bytesize
           io << ", " unless first
           io << '@' << ShortString.from_io(@io)
-          io << '=' << read_field
+          io << '=' << read_field(table_to_h: false)
           first = false
         end
         io << ')'
@@ -293,7 +293,7 @@ module AMQ
         end
       end
 
-      private def read_field(table_to_h = false) : Field
+      private def read_field(table_to_h = true) : Field
         type = @io.read_byte
         case type
         when 't' then @io.read_byte == 1_u8
@@ -325,7 +325,7 @@ module AMQ
         end
       end
 
-      private def read_array(table_to_h = false)
+      private def read_array(table_to_h = true)
         size = UInt32.from_io(@io, BYTEFORMAT)
         end_pos = @io.pos + size
         a = Array(Field).new
