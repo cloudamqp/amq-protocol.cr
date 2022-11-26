@@ -34,7 +34,7 @@ module AMQ
           when Body::TYPE      then Body.new(channel, size, io)
           when Heartbeat::TYPE then Heartbeat.new
           else
-            raise Error::FrameDecode.new
+            raise Error::FrameDecode.new("Invalid frame type #{type}")
           end
 
         begin
