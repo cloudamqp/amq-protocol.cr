@@ -81,9 +81,14 @@ describe AMQ::Protocol::Properties do
   end
 
   it "can be parsed from json" do
-    json = JSON.parse(%({"content_type": "application/json", "headers": {"a": 1}}))
+    json = JSON.parse(%({"content_type": "application/json", "headers": {"a": 1, "b": [1,2], "c": { "d": 1 }}}))
     props = AMQ::Protocol::Properties.from_json(json)
     props.content_type.should eq "application/json"
-    props.headers.not_nil!["a"].should eq 1
+    props.headers.should_not be_nil
+    if headers = props.headers
+      headers["a"].should eq 1
+      headers["b"].should eq [1, 2]
+      headers["c"].should eq({"d" => 1})
+    end
   end
 end
