@@ -41,7 +41,7 @@ module AMQ
         fetch(key) { default }
       end
 
-      def fetch(key : String)
+      def fetch(key : String, &)
         @io.rewind
         while @io.pos < @io.bytesize
           if key == ShortString.from_io(@io)
@@ -65,7 +65,7 @@ module AMQ
         false
       end
 
-      def each
+      def each(& : (String, Field) -> Nil)
         @io.rewind
         while @io.pos < @io.bytesize
           k = ShortString.from_io(@io)
@@ -85,7 +85,7 @@ module AMQ
         i
       end
 
-      def any?(&blk : (String, Field) -> _) : Bool
+      def any?(& : (String, Field) -> _) : Bool
         @io.rewind
         while @io.pos < @io.bytesize
           k = ShortString.from_io(@io)
@@ -95,7 +95,7 @@ module AMQ
         false
       end
 
-      def all?(&blk : String, Field -> _) : Bool
+      def all?(& : String, Field -> _) : Bool
         @io.rewind
         while @io.pos < @io.bytesize
           k = ShortString.from_io(@io)

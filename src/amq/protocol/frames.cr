@@ -9,7 +9,7 @@ module AMQ
       abstract def to_io(io : IO, format : IO::ByteFormat)
       abstract def type : UInt8
 
-      def wrap(io, format : IO::ByteFormat) : Nil
+      def wrap(io, format : IO::ByteFormat, &) : Nil
         buf = uninitialized UInt8[7]
         buf[0] = type
         slice = buf.to_slice
