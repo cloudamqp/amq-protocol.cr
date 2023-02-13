@@ -177,8 +177,7 @@ module AMQ
 
       def to_io(io, format) : Nil
         io.write_bytes(@io.bytesize.to_u32, format)
-        @io.rewind
-        IO.copy(@io, io, @io.bytesize)
+        io.write @io.to_slice
       end
 
       def self.from_bytes(bytes, format) : self
