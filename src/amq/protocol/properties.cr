@@ -54,16 +54,16 @@ module AMQ
         @timestamp_raw = timestamp.is_a?(Time) ? timestamp.to_unix : timestamp
       end
 
-      def self.from_bytes(bytes, format, bytesize = 2)
-        pos = 0
-        flags = format.decode(UInt16, bytes[pos, 2]); pos += 2
+      def self.from_bytes(bytes, format)
+        flags = format.decode(UInt16, bytes[0, 2])
+        return Properties.new if flags.zero?
         invalid = false
         invalid ||= flags & 1_u16 << 0 > 0
         invalid ||= flags & 2_u16 << 0 > 0
         if invalid
           raise Error::FrameDecode.new("Invalid property flags")
         end
-
+        pos = 2
         if flags & FLAG_CONTENT_TYPE > 0
           content_type = ShortString.from_bytes(bytes + pos, format); pos += 1 + content_type.bytesize
         end
@@ -112,9 +112,8 @@ module AMQ
       end
 
       def self.from_io(io, format, flags = UInt16.from_io(io, format))
-        invalid = false
-        invalid ||= flags & 1_u16 << 0 > 0
-        invalid ||= flags & 2_u16 << 0 > 0
+        return Properties.new if flags.zero?
+        invalid = flags & 3_u16 > 0
         raise Error::FrameDecode.new("Invalid property flags") if invalid
         content_type = ShortString.from_io(io, format) if flags & FLAG_CONTENT_TYPE > 0
         content_encoding = ShortString.from_io(io, format) if flags & FLAG_CONTENT_ENCODING > 0
@@ -280,6 +279,7 @@ module AMQ
       def self.skip(io, format) : Int64
         flags = io.read_bytes UInt16, format
         skipped = sizeof(UInt16).to_i64
+        return skipped if flags.zero?
         if flags & FLAG_CONTENT_TYPE > 0
           len = io.read_byte || raise IO::EOFError.new
           io.skip(len)
