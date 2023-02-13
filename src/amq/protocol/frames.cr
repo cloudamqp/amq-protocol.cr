@@ -20,7 +20,7 @@ module AMQ
         io.write_byte 206_u8
       end
 
-      def self.from_io(io, format = IO::ByteFormat::NetworkEndian, &block : Frame -> _)
+      def self.from_io(io, format = IO::ByteFormat::NetworkEndian, & : Frame -> _)
         buf = uninitialized UInt8[7]
         slice = buf.to_slice
         io.read_fully(slice)
