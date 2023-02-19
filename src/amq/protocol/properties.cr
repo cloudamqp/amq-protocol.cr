@@ -54,9 +54,9 @@ module AMQ
         @timestamp_raw = timestamp.is_a?(Time) ? timestamp.to_unix : timestamp
       end
 
-      def self.from_bytes(bytes, format)
+      def self.from_bytes(bytes : Bytes, format : IO::ByteFormat) : self
         flags = format.decode(UInt16, bytes[0, 2])
-        return Properties.new if flags.zero?
+        return self.new if flags.zero?
         invalid = false
         invalid ||= flags & 1_u16 << 0 > 0
         invalid ||= flags & 2_u16 << 0 > 0
@@ -106,13 +106,13 @@ module AMQ
         if flags & FLAG_RESERVED1 > 0
           reserved1 = ShortString.from_bytes(bytes + pos, format); pos += 1 + reserved1.bytesize
         end
-        Properties.new(content_type, content_encoding, headers, delivery_mode,
+        self.new(content_type, content_encoding, headers, delivery_mode,
           priority, correlation_id, reply_to, expiration,
           message_id, timestamp_raw, type, user_id, app_id, reserved1)
       end
 
-      def self.from_io(io, format, flags = UInt16.from_io(io, format))
-        return Properties.new if flags.zero?
+      def self.from_io(io, format, flags = UInt16.from_io(io, format)) : self
+        return self.new if flags.zero?
         invalid = flags & 3_u16 > 0
         raise Error::FrameDecode.new("Invalid property flags") if invalid
         content_type = ShortString.from_io(io, format) if flags & FLAG_CONTENT_TYPE > 0
@@ -129,13 +129,13 @@ module AMQ
         user_id = ShortString.from_io(io, format) if flags & FLAG_USER_ID > 0
         app_id = ShortString.from_io(io, format) if flags & FLAG_APP_ID > 0
         reserved1 = ShortString.from_io(io, format) if flags & FLAG_RESERVED1 > 0
-        Properties.new(content_type, content_encoding, headers, delivery_mode,
+        self.new(content_type, content_encoding, headers, delivery_mode,
           priority, correlation_id, reply_to, expiration,
           message_id, timestamp_raw, type, user_id, app_id, reserved1)
       end
 
       def self.from_json(data : JSON::Any) : self
-        p = Properties.new
+        p = self.new
         p.content_type = data["content_type"]?.try(&.as_s)
         p.content_encoding = data["content_encoding"]?.try(&.as_s)
         p.headers = data["headers"]?.try(&.as_h?).try { |hdrs| Table.new hdrs }
@@ -351,7 +351,7 @@ module AMQ
       end
 
       def clone
-        Properties.new(
+        self.new(
           @content_type.clone,
           @content_encoding.clone,
           @headers.clone,
