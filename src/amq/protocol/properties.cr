@@ -155,22 +155,50 @@ module AMQ
       end
 
       def to_json(json : JSON::Builder)
-        {
-          "content_type"     => @content_type,
-          "content_encoding" => @content_encoding,
-          "headers"          => @headers,
-          "delivery_mode"    => @delivery_mode,
-          "priority"         => @priority,
-          "correlation_id"   => @correlation_id,
-          "reply_to"         => @reply_to,
-          "expiration"       => @expiration,
-          "message_id"       => @message_id,
-          "timestamp"        => @timestamp_raw,
-          "type"             => @type,
-          "user_id"          => @user_id,
-          "app_id"           => @app_id,
-          "reserved"         => @reserved1,
-        }.compact.to_json(json)
+        json.object do
+          if v = @content_type
+            json.field "content_type", v
+          end
+          if v = @content_encoding
+            json.field "content_encoding", v
+          end
+          if v = @headers
+            json.field "headers", v
+          end
+          if v = @delivery_mode
+            json.field "delivery_mode", v
+          end
+          if v = @priority
+            json.field "priority", v
+          end
+          if v = @correlation_id
+            json.field "correlation_id", v
+          end
+          if v = @reply_to
+            json.field "reply_to", v
+          end
+          if v = @expiration
+            json.field "expiration", v
+          end
+          if v = @message_id
+            json.field "message_id", v
+          end
+          if v = @timestamp_raw
+            json.field "timestamp", v
+          end
+          if v = @type
+            json.field "type", v
+          end
+          if v = @user_id
+            json.field "user_id", v
+          end
+          if v = @app_id
+            json.field "app_id", v
+          end
+          if v = @reserved1
+            json.field "reserved1", v
+          end
+        end
       end
 
       def to_io(io, format)
