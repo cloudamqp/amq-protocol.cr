@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.3] - 2023-03-04
+
+### Fixed
+
+- Optimized Properties#to_json
+- Return early from Properties.from_bytes/from_io/#bytesize if flags == 0
+- Table#to_io is now thread safe
+
 ## [1.1.2] - 2022-11-26
 
 ### Changed
