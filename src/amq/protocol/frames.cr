@@ -989,8 +989,12 @@ module AMQ
             METHOD_ID
           end
 
-          getter reserved1, passive, durable, exclusive, auto_delete, no_wait, arguments
-          property queue_name
+          getter reserved1, passive, durable, exclusive, auto_delete, no_wait, arguments, queue_name
+
+          def queue_name=(name)
+            @bytesize += name.bytesize - @queue_name.bytesize
+            @queue_name = name
+          end
 
           def initialize(channel : UInt16, @reserved1 : UInt16, @queue_name : String,
                          @passive : Bool, @durable : Bool, @exclusive : Bool,
@@ -1067,8 +1071,17 @@ module AMQ
             METHOD_ID
           end
 
-          getter reserved1, exchange_name, no_wait, arguments
-          property queue_name, routing_key
+          getter reserved1, exchange_name, no_wait, arguments, queue_name, routing_key
+
+          def queue_name=(name)
+            @bytesize += name.bytesize - @queue_name.bytesize
+            @queue_name = name
+          end
+
+          def routing_key=(key)
+            @bytesize += key.bytesize - @routing_key.bytesize
+            @routing_key = key
+          end
 
           def initialize(channel : UInt16, @reserved1 : UInt16, @queue_name : String,
                          @exchange_name : String, @routing_key : String, @no_wait : Bool,
@@ -1124,8 +1137,12 @@ module AMQ
             METHOD_ID
           end
 
-          getter reserved1, if_unused, if_empty, no_wait
-          property queue_name
+          getter reserved1, if_unused, if_empty, no_wait, queue_name
+
+          def queue_name=(name)
+            @bytesize += name.bytesize - @queue_name.bytesize
+            @queue_name = name
+          end
 
           def initialize(channel : UInt16, @reserved1 : UInt16, @queue_name : String,
                          @if_unused : Bool, @if_empty : Bool, @no_wait : Bool,
@@ -1189,8 +1206,12 @@ module AMQ
             METHOD_ID
           end
 
-          getter reserved1, exchange_name, routing_key, arguments
-          property queue_name
+          getter reserved1, exchange_name, routing_key, arguments, queue_name
+
+          def queue_name=(name)
+            @bytesize += name.bytesize - @queue_name.bytesize
+            @queue_name = name
+          end
 
           def initialize(channel : UInt16, @reserved1 : UInt16, @queue_name : String,
                          @exchange_name : String, @routing_key : String,
@@ -1243,8 +1264,12 @@ module AMQ
             METHOD_ID
           end
 
-          getter reserved1, no_wait
-          property queue_name
+          getter reserved1, no_wait, queue_name
+
+          def queue_name=(name)
+            @bytesize += name.bytesize - @queue_name.bytesize
+            @queue_name = name
+          end
 
           def initialize(channel : UInt16, @reserved1 : UInt16, @queue_name : String,
                          @no_wait : Bool, bytesize = nil)
@@ -1385,8 +1410,12 @@ module AMQ
             METHOD_ID
           end
 
-          getter no_ack
-          property queue
+          getter no_ack, queue
+
+          def queue=(name)
+            @bytesize += name.bytesize - @queue.bytesize
+            @queue = name
+          end
 
           def initialize(channel, @reserved1 : UInt16, @queue : String, @no_ack : Bool,
                          bytesize = nil)
@@ -1623,8 +1652,17 @@ module AMQ
             METHOD_ID
           end
 
-          getter no_local, no_ack, exclusive, no_wait, arguments
-          property queue, consumer_tag
+          getter no_local, no_ack, exclusive, no_wait, arguments, queue, consumer_tag
+
+          def queue=(name)
+            @bytesize += name.bytesize - @queue.bytesize
+            @queue = name
+          end
+
+          def consumer_tag=(tag)
+            @bytesize += tag.bytesize - @consumer_tag.bytesize
+            @consumer_tag = tag
+          end
 
           def initialize(channel, @reserved1 : UInt16, @queue : String, @consumer_tag : String,
                          @no_local : Bool, @no_ack : Bool, @exclusive : Bool, @no_wait : Bool,
