@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.5] - 2023-06-27
+
+### Added
+
+- Frame#to_slice, returns a byte slice of the frame (but uses heap allocation underneath)
+
 ## [1.1.4] - 2023-05-04
 
 ### Fixed
