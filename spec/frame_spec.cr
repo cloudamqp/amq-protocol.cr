@@ -10,4 +10,11 @@ describe AMQ::Protocol::Frame::Method::Basic::Get do
       f_out.should eq f_in
     end
   end
+
+  it "can be encoded to slice" do
+    frame = AMQ::Protocol::Frame::Method::Queue::Declare.new(1u16, 0u16, "qname", false, true, false, false, false, AMQ::Protocol::Table.new)
+    io = IO::Memory.new
+    frame.to_io(io, IO::ByteFormat::SystemEndian)
+    frame.to_slice.should eq io.to_slice
+  end
 end

@@ -52,6 +52,12 @@ module AMQ
         end
       end
 
+      def to_slice(format = IO::ByteFormat::SystemEndian) : Bytes
+        io = IO::Memory.new(bytesize)
+        to_io(io, format)
+        io.to_slice
+      end
+
       struct Header < Frame
         TYPE = 2_u8
 
