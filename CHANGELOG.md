@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.6] - 2023-07-20
+
+### Fixed
+
+- Validate property flags also when "skipping" Properties.
+
 ## [1.1.5] - 2023-06-27
 
 ### Added
