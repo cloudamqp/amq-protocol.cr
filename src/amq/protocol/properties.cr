@@ -17,6 +17,7 @@ module AMQ
       FLAG_USER_ID          = 0x0010_u16
       FLAG_APP_ID           = 0x0008_u16
       FLAG_RESERVED1        = 0x0004_u16
+      FLAG_INVALID          = 0x0003_u16
 
       property content_type
       property content_encoding
@@ -57,12 +58,7 @@ module AMQ
       def self.from_bytes(bytes : Bytes, format : IO::ByteFormat) : self
         flags = format.decode(UInt16, bytes[0, 2])
         return self.new if flags.zero?
-        invalid = false
-        invalid ||= flags & 1_u16 << 0 > 0
-        invalid ||= flags & 2_u16 << 0 > 0
-        if invalid
-          raise Error::FrameDecode.new("Invalid property flags")
-        end
+        raise Error::FrameDecode.new("Invalid property flags (#{sprintf "%#b", flags})") if flags & FLAG_INVALID > 0
         pos = 2
         if flags & FLAG_CONTENT_TYPE > 0
           content_type = ShortString.from_bytes(bytes + pos, format); pos += 1 + content_type.bytesize
@@ -113,8 +109,7 @@ module AMQ
 
       def self.from_io(io, format, flags = UInt16.from_io(io, format)) : self
         return self.new if flags.zero?
-        invalid = flags & 3_u16 > 0
-        raise Error::FrameDecode.new("Invalid property flags") if invalid
+        raise Error::FrameDecode.new("Invalid property flags (#{sprintf "%#b", flags})") if flags & FLAG_INVALID > 0
         content_type = ShortString.from_io(io, format) if flags & FLAG_CONTENT_TYPE > 0
         content_encoding = ShortString.from_io(io, format) if flags & FLAG_CONTENT_ENCODING > 0
         headers = Table.from_io(io, format) if flags & FLAG_HEADERS > 0
@@ -306,8 +301,9 @@ module AMQ
 
       def self.skip(io, format) : Int64
         flags = io.read_bytes UInt16, format
-        skipped = sizeof(UInt16).to_i64
+        skipped = 2_i64 # sizeof UInt16
         return skipped if flags.zero?
+        raise Error::FrameDecode.new("Invalid property flags (#{sprintf "%#b", flags})") if flags & FLAG_INVALID > 0
         if flags & FLAG_CONTENT_TYPE > 0
           len = io.read_byte || raise IO::EOFError.new
           io.skip(len)
