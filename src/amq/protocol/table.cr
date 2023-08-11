@@ -144,7 +144,8 @@ module AMQ
         while @io.pos < @io.bytesize
           io << ", " unless first
           io << '@' << ShortString.from_io(@io)
-          io << '=' << read_field
+          io << '='
+          read_field.inspect(io)
           first = false
         end
         io << ')'
