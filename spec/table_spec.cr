@@ -90,4 +90,12 @@ describe AMQ::Protocol::Table do
     data2 = AMQ::Protocol::Table.from_io(io, IO::ByteFormat::NetworkEndian)
     data2.should eq tbl
   end
+
+  it "can be cloned" do
+    t1 = AMQ::Protocol::Table.new({b: 1_i32, a: 1_i64})
+    t2 = t1.clone
+    t2.should eq t1
+    t2["c"] = 2
+    t2.should_not eq t1
+  end
 end
