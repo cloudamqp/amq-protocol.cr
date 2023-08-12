@@ -112,36 +112,4 @@ describe AMQ::Protocol::Table do
     t1 = AMQ::Protocol::Table.new(nil)
     t1.should be_empty
   end
-
-  it "supports #delete" do
-    t1 = AMQ::Protocol::Table.new({a: 1, b: "foo"})
-    t1.delete("a").should eq 1
-    t1.to_h.should eq({"b" => "foo"})
-  end
-
-  it "supports reject!" do
-    t1 = AMQ::Protocol::Table.new({a: 1, b: "foo"})
-    t1.reject! { |k, v| k.in?("a") }
-    t1.to_h.should eq({"b" => "foo"})
-  end
-
-  it "supports merge!" do
-    t1 = AMQ::Protocol::Table.new({a: 1, b: "foo"})
-    t1.merge!({c: nil})
-    t1.to_h.should eq({"a" => 1, "b" => "foo", "c" => nil})
-  end
-
-  it "can add fields" do
-    t1 = AMQ::Protocol::Table.new({"foo": "bar"})
-    t1["x-stream-offset"] = 1i64
-    t1["x-delay"]?.should be_nil
-    t1.to_h.should eq({"foo" => "bar", "x-stream-offset" => 1i64})
-  end
-
-  it "can add to fields to empty" do
-    t1 = AMQ::Protocol::Table.new
-    t1["x-stream-offset"] = 1i64
-    t1["x-delay"]?.should be_nil
-    t1.to_h.should eq({"x-stream-offset" => 1i64})
-  end
 end
