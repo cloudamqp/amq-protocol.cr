@@ -1,40 +1,38 @@
 require "./field"
-require "./short_string"
-require "./long_string"
 require "./errors"
 
 module AMQ
   module Protocol
     struct Table
       BYTEFORMAT = IO::ByteFormat::NetworkEndian
+      @buffer : Pointer(UInt8)
+      @capacity = 0
+      @bytesize = 0
+      @pos = 0
+      @read_only = false
 
-      def initialize(tuple : NamedTuple)
-        @io = IO::Memory.new
-        tuple.each do |key, value|
-          @io.write_bytes(ShortString.new(key.to_s))
-          write_field(value)
+      def initialize(hash : Hash(String, Field) | NamedTuple)
+        hash.each { |k, v| @capacity += 1 + k.to_s.bytesize + 1 + capacity_required(v) }
+        if @capacity.zero?
+          @buffer = Pointer(UInt8).null
+        else
+          @buffer = GC.malloc_atomic(@capacity).as(UInt8*)
         end
-      end
-
-      def initialize(hash : Hash(String, Field))
-        @io = IO::Memory.new
         hash.each do |key, value|
-          @io.write_bytes(ShortString.new(key))
+          write_short_string(key.to_s)
           write_field(value)
         end
       end
 
-      def initialize(_nil : Nil)
-        @io = IO::Memory.new(0)
+      def initialize(bytes : Bytes? = Bytes.empty)
+        bytes ||= Bytes.empty
+        @buffer = bytes.to_unsafe
+        @bytesize = @capacity = bytes.bytesize
+        @read_only = true
       end
 
-      def initialize(@io = IO::Memory.new(0))
-      end
-
-      def clone : self
-        io = IO::Memory.new(@io.bytesize)
-        io.write @io.to_slice
-        Table.new io
+      def clone
+        Table.new to_slice.clone
       end
 
       def []?(key : String)
@@ -50,9 +48,9 @@ module AMQ
       end
 
       def fetch(key : String, &)
-        @io.rewind
-        while @io.pos < @io.bytesize
-          if key == ShortString.from_io(@io)
+        @pos = 0
+        while @pos < @bytesize
+          if key == read_short_string
             return read_field
           else
             skip_field
@@ -62,9 +60,9 @@ module AMQ
       end
 
       def has_key?(key : String) : Bool
-        @io.rewind
-        while @io.pos < @io.bytesize
-          if key == ShortString.from_io(@io)
+        @pos = 0
+        while @pos < @bytesize
+          if key == read_short_string
             return true
           else
             skip_field
@@ -73,25 +71,34 @@ module AMQ
         false
       end
 
-      @[Deprecated("key must be string")]
+      @[Deprecated("key must be String")]
       def has_key?(key)
         has_key?(key.to_s)
       end
 
       def each(& : (String, Field) -> Nil)
-        @io.rewind
-        while @io.pos < @io.bytesize
-          k = ShortString.from_io(@io)
+        @pos = 0
+        while @pos < @bytesize
+          k = read_short_string
           v = read_field
           yield k, v
         end
       end
 
+      def each_key(& : String -> Nil)
+        @pos = 0
+        while @pos < @bytesize
+          k = read_short_string
+          skip_field
+          yield k
+        end
+      end
+
       def size
-        @io.rewind
         i = 0
-        while @io.pos < @io.bytesize
-          ShortString.skip(@io)
+        @pos = 0
+        while @pos < @bytesize
+          skip_short_string
           skip_field
           i += 1
         end
@@ -99,9 +106,9 @@ module AMQ
       end
 
       def any?(& : (String, Field) -> _) : Bool
-        @io.rewind
-        while @io.pos < @io.bytesize
-          k = ShortString.from_io(@io)
+        @pos = 0
+        while @pos < @bytesize
+          k = read_short_string
           v = read_field
           return true if yield(k, v)
         end
@@ -109,9 +116,9 @@ module AMQ
       end
 
       def all?(& : String, Field -> _) : Bool
-        @io.rewind
-        while @io.pos < @io.bytesize
-          k = ShortString.from_io(@io)
+        @pos = 0
+        while @pos < @bytesize
+          k = read_short_string
           v = read_field
           return false unless yield(k, v)
         end
@@ -119,21 +126,22 @@ module AMQ
       end
 
       def empty?
-        @io.empty?
+        @bytesize.zero?
       end
 
       def []=(key : String, value : Field)
+        check_writeable
         delete(key)
-        @io.skip_to_end
-        @io.write_bytes(ShortString.new(key))
+        write_short_string(key)
         write_field(value)
+        value
       end
 
       def to_h
-        @io.rewind
+        @pos = 0
         h = Hash(String, Field).new
-        while @io.pos < @io.bytesize
-          k = ShortString.from_io(@io)
+        while @pos < @bytesize
+          k = read_short_string
           h[k] = read_field(table_to_h: true)
         end
         h
@@ -141,9 +149,9 @@ module AMQ
 
       def to_json(json : JSON::Builder)
         json.object do
-          @io.rewind
-          while @io.pos < @io.bytesize
-            key = ShortString.from_io(@io)
+          @pos = 0
+          while @pos < @bytesize
+            key = read_short_string
             value = read_field
             json.field key, value
           end
@@ -153,10 +161,10 @@ module AMQ
       def inspect(io)
         io << {{@type.name.id.stringify}} << '('
         first = true
-        @io.rewind
-        while @io.pos < @io.bytesize
+        @pos = 0
+        while @pos < @bytesize
           io << ", " unless first
-          io << '@' << ShortString.from_io(@io)
+          io << '@' << read_short_string
           io << '='
           read_field.inspect(io)
           first = false
@@ -191,257 +199,370 @@ module AMQ
       end
 
       def delete(key : String)
-        ensure_writeable
-        @io.rewind
-        while @io.pos < @io.bytesize
-          start_pos = @io.pos
-          if key == ShortString.from_io(@io)
+        check_writeable
+        @pos = 0
+        while @pos < @bytesize
+          start_pos = @pos
+          if key == read_short_string
             v = read_field
-            length = @io.pos - start_pos
-            (@io.buffer + start_pos).move_from(@io.buffer + @io.pos, @io.bytesize - @io.pos)
-            @io.bytesize -= length
+            kv_length = @pos - start_pos
+            (@buffer + start_pos).move_from(@buffer + @pos, @bytesize - @pos)
+            @bytesize -= kv_length
             return v
+          else
+            skip_field
           end
-          skip_field
         end
         nil
       end
 
-      @[Deprecated("key must be string")]
+      @[Deprecated("key must be String")]
       def delete(key)
         delete(key.to_s)
       end
 
       def to_io(io, format) : Nil
-        io.write_bytes(@io.bytesize.to_u32, format)
-        io.write @io.to_slice
+        io.write_bytes(@bytesize.to_u32, format)
+        io.write to_slice
       end
 
-      def self.from_bytes(bytes, format) : self
+      def self.from_bytes(bytes, format = BYTEFORMAT) : self
         size = format.decode(UInt32, bytes[0, 4])
-        mem = IO::Memory.new(bytes[4, size], writeable: false)
-        new(mem)
+        if bytes.read_only?
+          slice = Bytes.new(bytes.to_unsafe + 4, size, read_only: true)
+        else
+          slice = Bytes.new(size, read_only: false)
+          slice.copy_from(bytes.to_unsafe + 4, size)
+        end
+        new(slice)
       end
 
       def self.from_io(io, format, size : UInt32? = nil) : self
         size ||= UInt32.from_io(io, format)
         case io
         when IO::Memory
-          if io.@writeable
-            mem = IO::Memory.new(size)
-            IO.copy(io, mem, size)
-            new(mem)
+          if io.@writeable # Need to copy the bytes to prevent modification being mirrored here
+            bytes = Bytes.new(size)
+            io.read(bytes)
+            new(bytes)
           else
-            bytes = io.to_slice[io.pos, size]
+            bytes = Bytes.new(io.buffer + io.pos, size, read_only: true)
             io.pos += size
-            new(IO::Memory.new(bytes, writeable: false))
+            new(bytes)
           end
         else
-          mem = IO::Memory.new(size)
-          IO.copy(io, mem, size)
-          new(mem)
+          buffer = Bytes.new(size)
+          io.read_fully(buffer)
+          new(buffer)
         end
       end
 
       def bytesize
-        sizeof(UInt32) + @io.bytesize
+        sizeof(UInt32) + @bytesize
+      end
+
+      def to_slice(pos = 0, length = @bytesize - pos)
+        Bytes.new(@buffer + pos, length)
       end
 
       def reject!(& : String, Field -> _) : self
-        ensure_writeable
-        @io.rewind
-        while @io.pos < @io.bytesize
-          start_pos = @io.pos
-          key = ShortString.from_io(@io)
+        check_writeable
+        @pos = 0
+        while @pos < @bytesize
+          start_pos = @pos
+          key = read_short_string
           value = read_field
-          if yield(key, value)
-            length = @io.pos - start_pos
-            (@io.buffer + start_pos).move_from(@io.buffer + @io.pos, @io.bytesize - @io.pos)
-            @io.bytesize -= length
-            @io.pos -= length
+          if yield key, value
+            kv_length = @pos - start_pos
+            (@buffer + start_pos).move_from(@buffer + @pos, @bytesize - @pos)
+            @bytesize -= kv_length
+            @pos -= kv_length
           end
         end
         self
       end
 
       def merge!(other : Hash(String, Field) | NamedTuple | self) : self
-        ensure_writeable
-        @io.rewind
+        check_writeable
+        other.each_key { |k| delete(k.to_s) }
+        capacity = 0
+        other.each { |k, v| capacity += 1 + k.to_s.bytesize + 1 + capacity_required(v) }
+        ensure_capacity(capacity)
         other.each do |key, value|
-          delete(key.to_s)
-          @io.skip_to_end
-          @io.write_bytes(ShortString.new(key.to_s))
+          write_short_string(key.to_s)
           write_field(value)
         end
         self
       end
 
-      private def ensure_writeable
-        return if @io.@writeable.as(Bool)
-        writeable_io = IO::Memory.new(@io.bytesize)
-        writeable_io.write @io.to_slice
-        @io = writeable_io
+      private def check_writeable : Nil
+        return unless @read_only
+        @buffer = to_slice.dup.to_unsafe
+        @read_only = false
       end
 
-      private def write_field(value)
+      private def write_short_string(str : String)
+        ensure_capacity(1 + str.bytesize)
+        @buffer[@bytesize] = str.bytesize.to_u8; @bytesize += 1
+        str.to_slice.copy_to(@buffer + @bytesize, str.bytesize)
+        @bytesize += str.bytesize
+        str
+      end
+
+      private def write_field(value) : Nil
         case value
         when JSON::Any
           write_field(value.raw)
-        when Bool
-          @io.write_byte 't'.ord.to_u8
-          @io.write_byte(value ? 1_u8 : 0_u8)
-        when Int8
-          @io.write_byte 'b'.ord.to_u8
-          @io.write_bytes(value, BYTEFORMAT)
-        when UInt8
-          @io.write_byte 'B'.ord.to_u8
-          @io.write_byte(value)
-        when Int16
-          @io.write_byte 's'.ord.to_u8
-          @io.write_bytes(value, BYTEFORMAT)
-        when UInt16
-          @io.write_byte 'u'.ord.to_u8
-          @io.write_bytes(value, BYTEFORMAT)
-        when Int32
-          @io.write_byte 'I'.ord.to_u8
-          @io.write_bytes(value, BYTEFORMAT)
-        when UInt32
-          @io.write_byte 'i'.ord.to_u8
-          @io.write_bytes(value, BYTEFORMAT)
-        when Int64
-          @io.write_byte 'l'.ord.to_u8
-          @io.write_bytes(value, BYTEFORMAT)
-        when Float32
-          @io.write_byte 'f'.ord.to_u8
-          @io.write_bytes(value, BYTEFORMAT)
-        when Float64
-          @io.write_byte 'd'.ord.to_u8
-          @io.write_bytes(value, BYTEFORMAT)
-        when String
-          @io.write_byte 'S'.ord.to_u8
-          @io.write_bytes LongString.new(value), BYTEFORMAT
-        when Bytes
-          @io.write_byte 'x'.ord.to_u8
-          @io.write_bytes(value.bytesize.to_u32, BYTEFORMAT)
-          @io.write value
-        when Array
-          @io.write_byte 'A'.ord.to_u8
-          prefix_size do
-            value.each do |v|
-              write_field(v)
-            end
-          end
-        when Time
-          @io.write_byte 'T'.ord.to_u8
-          @io.write_bytes(value.to_unix.to_i64, BYTEFORMAT)
-        when Table
-          @io.write_byte 'F'.ord.to_u8
-          @io.write_bytes value, BYTEFORMAT
         when Hash, NamedTuple
-          @io.write_byte 'F'.ord.to_u8
-          prefix_size do
-            value.each do |k, v|
-              ShortString.new(k.to_s).to_io(@io)
-              write_field(v)
-            end
-          end
+          write_field(Table.new(value))
+        when Int
+          ensure_capacity(1 + sizeof_int(value))
+          write_prefix(value)
+          write_int(value)
+        when Float32
+          ensure_capacity(1 + sizeof(Float32))
+          write_prefix(value)
+          BYTEFORMAT.encode(value, Slice.new(@buffer + @bytesize, sizeof(Float32)))
+          @bytesize += sizeof(Float32)
+        when Float64
+          ensure_capacity(1 + sizeof(Float64))
+          write_prefix(value)
+          BYTEFORMAT.encode(value, Slice.new(@buffer + @bytesize, sizeof(Float64)))
+          @bytesize += sizeof(Float64)
+        when Bool
+          ensure_capacity(1 + sizeof(Bool))
+          write_prefix(value)
+          @buffer[@bytesize] = value ? 1_u8 : 0_u8
+          @bytesize += 1
+        when String
+          ensure_capacity(1 + sizeof(UInt32) + value.bytesize)
+          write_prefix(value)
+          write_int(value.bytesize.to_u32)
+          value.to_slice.copy_to(@buffer + @bytesize, value.bytesize)
+          @bytesize += value.bytesize
+        when Bytes
+          ensure_capacity(1 + sizeof(UInt32) + value.size)
+          write_prefix(value)
+          write_int(value.size.to_u32)
+          value.copy_to(@buffer + @bytesize, value.size)
+          @bytesize += value.size
+        when Array
+          ensure_capacity(1 + sizeof(UInt32))
+          write_prefix(value)
+          length_pos = @bytesize
+          write_int(0u32) # update size later
+          start_pos = @bytesize
+          value.each { |v| write_field(v) }
+          end_pos = @bytesize
+          array_bytesize = end_pos - start_pos
+          BYTEFORMAT.encode(array_bytesize.to_u32, Slice.new(@buffer + length_pos, sizeof(UInt32)))
+        when Time
+          ensure_capacity(1 + sizeof(Int64))
+          write_prefix(value)
+          write_int(value.to_unix.to_i64)
+        when Table
+          tbl_slice = value.to_slice
+          ensure_capacity(1 + sizeof(UInt32) + tbl_slice.size)
+          write_prefix(value)
+          write_int(tbl_slice.size.to_u32)
+          tbl_slice.copy_to(@buffer + @bytesize, tbl_slice.size)
+          @bytesize += tbl_slice.size
         when Nil
-          @io.write_byte 'V'.ord.to_u8
+          ensure_capacity(1)
+          write_prefix(value)
         else raise Error.new "Unsupported Field type: #{value.class}"
         end
       end
 
-      private def prefix_size(&)
-        @io.write_bytes(0_u32, BYTEFORMAT)
-        start_pos = @io.pos
-        begin
-          yield
-        ensure
-          end_pos = @io.pos
-          bytesize = end_pos - start_pos
-          @io.pos = start_pos - sizeof(UInt32)
-          @io.write_bytes(bytesize.to_u32, BYTEFORMAT)
-          @io.pos = end_pos
+      private def ensure_capacity(size : Int)
+        required_capacity = @bytesize + size
+        if required_capacity > @capacity
+          capacity = Math.pw2ceil(required_capacity)
+          @buffer = GC.realloc(@buffer, capacity)
+          @capacity = capacity
         end
       end
 
-      private def skip_field
-        type = @io.read_byte
+      private def write_prefix(value)
+        @buffer[@bytesize] = prefix(value).ord.to_u8
+        @bytesize += 1
+      end
+
+      private def prefix(value) : Char
+        case value
+        when Int8    then 'b'
+        when UInt8   then 'B'
+        when Int16   then 's'
+        when UInt16  then 'u'
+        when Int32   then 'I'
+        when UInt32  then 'i'
+        when Int64   then 'l'
+        when Float32 then 'f'
+        when Float64 then 'd'
+        when Bool    then 't'
+        when String  then 'S'
+        when Bytes   then 'x'
+        when Array   then 'A'
+        when Time    then 'T'
+        when Table   then 'F'
+        when Nil     then 'V'
+        else              raise "Unexpected field type #{value.class}"
+        end
+      end
+
+      private def write_int(value) : Nil
+        BYTEFORMAT.encode(value, Slice.new(@buffer + @bytesize, sizeof_int(value)))
+        @bytesize += sizeof_int(value)
+      end
+
+      private def sizeof_int(value) : Int32
+        {% begin %}
+          case value
+          {% for type, i in %w[Int8 UInt8 Int16 UInt16 Int32 UInt32 Int64 UInt64] %}
+            {% bytesize = 2 ** (i // 2) %}
+            when {{type.id}} then {{ bytesize }}
+          {% end %}
+          else raise "unexpected value type #{value.class}"
+          end
+        {% end %}
+      end
+
+      private def skip_field : Nil
+        type = to_slice[@pos]; @pos += 1
+        @pos += sizeof_field_type(type)
+      end
+
+      private def sizeof_field_type(type) : Int32
         case type
-        when 't' then @io.skip(sizeof(UInt8))
-        when 'b' then @io.skip(sizeof(Int8))
-        when 'B' then @io.skip(sizeof(UInt8))
-        when 's' then @io.skip(sizeof(Int16))
-        when 'u' then @io.skip(sizeof(UInt16))
-        when 'I' then @io.skip(sizeof(Int32))
-        when 'i' then @io.skip(sizeof(UInt32))
-        when 'l' then @io.skip(sizeof(Int64))
-        when 'f' then @io.skip(sizeof(Float32))
-        when 'd' then @io.skip(sizeof(Float64))
-        when 'S' then @io.skip(UInt32.from_io(@io, BYTEFORMAT))
-        when 'x' then @io.skip(UInt32.from_io(@io, BYTEFORMAT))
-        when 'A' then @io.skip(UInt32.from_io(@io, BYTEFORMAT))
-        when 'T' then @io.skip(sizeof(Int64))
-        when 'F' then @io.skip(UInt32.from_io(@io, BYTEFORMAT))
-        when 'D' then @io.skip(1 + sizeof(Int32))
-        when 'V' then @io.skip(0)
+        when 't' then sizeof(UInt8)
+        when 'b' then sizeof(Int8)
+        when 'B' then sizeof(UInt8)
+        when 's' then sizeof(Int16)
+        when 'u' then sizeof(UInt16)
+        when 'I' then sizeof(Int32)
+        when 'i' then sizeof(UInt32)
+        when 'l' then sizeof(Int64)
+        when 'f' then sizeof(Float32)
+        when 'd' then sizeof(Float64)
+        when 'D' then 1 + sizeof(Int32)
+        when 'T' then sizeof(Int64)
+        when 'S' then 4 + BYTEFORMAT.decode(UInt32, to_slice(@pos))
+        when 'x' then 4 + BYTEFORMAT.decode(UInt32, to_slice(@pos))
+        when 'A' then 4 + BYTEFORMAT.decode(UInt32, to_slice(@pos))
+        when 'F' then 4 + BYTEFORMAT.decode(UInt32, to_slice(@pos))
+        when 'V' then 0
         else          raise Error.new "Unknown field type '#{type}'"
         end
+      end
+
+      private def capacity_required(value) : Int32
+        case value
+        when Hash
+          sizeof(UInt32) + value.each.sum { |k, v| 1 + k.bytesize + 1 + capacity_required(v) }
+        when NamedTuple
+          required = sizeof(UInt32)
+          value.each { |k, v| required += 1 + k.to_s.bytesize + 1 + capacity_required(v) }
+          required
+        when JSON::Any then capacity_required(value.raw)
+        when Int       then sizeof_int(value)
+        when Float32   then sizeof(Float32)
+        when Float64   then sizeof(Float64)
+        when Bool      then sizeof(Bool)
+        when String    then sizeof(UInt32) + value.bytesize
+        when Bytes     then sizeof(UInt32) + value.size
+        when Array     then sizeof(UInt32) + value.sum { |v| 1 + capacity_required(v) }
+        when Time      then sizeof(Int64)
+        when Table     then value.bytesize
+        when Nil       then 0
+        else                raise Error.new "Unsupported Field type: #{value.class}"
+        end
+      end
+
+      private def skip_short_string
+        @pos += 1 + to_slice[@pos]
+      end
+
+      private def read_short_string
+        slice = to_slice(@pos)
+        sz = slice[0]
+        str = String.new(slice[1, sz])
+        @pos += 1 + sz
+        str
       end
 
       private def read_field(table_to_h = false) : Field
-        type = @io.read_byte
-        case type
-        when 't' then @io.read_byte == 1_u8
-        when 'b' then Int8.from_io(@io, BYTEFORMAT)
-        when 'B' then UInt8.from_io(@io, BYTEFORMAT)
-        when 's' then Int16.from_io(@io, BYTEFORMAT)
-        when 'u' then UInt16.from_io(@io, BYTEFORMAT)
-        when 'I' then Int32.from_io(@io, BYTEFORMAT)
-        when 'i' then UInt32.from_io(@io, BYTEFORMAT)
-        when 'l' then Int64.from_io(@io, BYTEFORMAT)
-        when 'f' then Float32.from_io(@io, BYTEFORMAT)
-        when 'd' then Float64.from_io(@io, BYTEFORMAT)
-        when 'S' then LongString.from_io(@io, BYTEFORMAT)
-        when 'x' then read_slice
-        when 'A' then read_array(table_to_h)
-        when 'T' then Time.unix(Int64.from_io(@io, BYTEFORMAT))
-        when 'F' then t = Table.from_io(@io, BYTEFORMAT); table_to_h ? t.to_h : t
-        when 'D' then read_decimal
-        when 'V' then nil
-        else          raise Error.new "Unknown field type '#{type}'"
-        end
+        type = to_slice[@pos]; @pos += 1
+        value = case type
+                when 't' then to_slice[@pos] == 1_u8
+                when 'b' then BYTEFORMAT.decode(Int8, to_slice(@pos))
+                when 'B' then BYTEFORMAT.decode(UInt8, to_slice(@pos))
+                when 's' then BYTEFORMAT.decode(Int16, to_slice(@pos))
+                when 'u' then BYTEFORMAT.decode(UInt16, to_slice(@pos))
+                when 'I' then BYTEFORMAT.decode(Int32, to_slice(@pos))
+                when 'i' then BYTEFORMAT.decode(UInt32, to_slice(@pos))
+                when 'l' then BYTEFORMAT.decode(Int64, to_slice(@pos))
+                when 'f' then BYTEFORMAT.decode(Float32, to_slice(@pos))
+                when 'd' then BYTEFORMAT.decode(Float64, to_slice(@pos))
+                when 'S' then read_long_string
+                when 'x' then read_slice
+                when 'A' then read_array(table_to_h)
+                when 'T' then Time.unix(BYTEFORMAT.decode(Int64, to_slice(@pos)))
+                when 'F' then t = Table.from_bytes(to_slice(@pos)); table_to_h ? t.to_h : t
+                when 'D' then read_decimal
+                when 'V' then nil
+                else          raise Error.new "Unknown field type '#{type}'"
+                end
+        @pos += case type
+                when 't' then sizeof(Bool)
+                when 'b' then sizeof(Int8)
+                when 'B' then sizeof(UInt8)
+                when 's' then sizeof(Int16)
+                when 'u' then sizeof(UInt16)
+                when 'I' then sizeof(Int32)
+                when 'i' then sizeof(UInt32)
+                when 'l' then sizeof(Int64)
+                when 'f' then sizeof(Float32)
+                when 'd' then sizeof(Float64)
+                when 'T' then sizeof(Int64)
+                when 'F' then sizeof(UInt32) + BYTEFORMAT.decode(UInt32, to_slice(@pos))
+                else          0
+                end
+        value
+      end
+
+      private def read_long_string : String
+        slice = to_slice(@pos)
+        sz = BYTEFORMAT.decode(UInt32, slice)
+        str = String.new(slice[4, sz])
+        @pos += 4 + sz
+        str
       end
 
       private def read_decimal : Float64
-        scale = @io.read_byte || raise IO::EOFError.new
-        value = Int32.from_io(@io, BYTEFORMAT)
+        scale = to_slice[@pos]
+        value = BYTEFORMAT.decode(Int32, to_slice(@pos + 1))
+        @pos += 1 + sizeof(Int32)
         value / 10**scale
       end
 
       private def read_array(table_to_h = false)
-        size = UInt32.from_io(@io, BYTEFORMAT)
-        end_pos = @io.pos + size
+        size = BYTEFORMAT.decode(UInt32, to_slice(@pos))
+        @pos += sizeof(UInt32)
+        end_pos = @pos + size
         a = Array(Field).new
-        while @io.pos < end_pos
+        while @pos < end_pos
           a << read_field(table_to_h)
         end
         a
       end
 
-      private def read_slice
-        size = UInt32.from_io(@io, BYTEFORMAT)
-        bytes = Bytes.new(size)
-        @io.read_fully bytes
+      private def read_slice : Bytes
+        size = BYTEFORMAT.decode(UInt32, to_slice(@pos))
+        bytes = to_slice(@pos + 4, size)
+        @pos += 4 + size
         bytes
       end
     end
-  end
-end
-
-class IO::Memory
-  def bytesize=(value)
-    @bytesize = value
   end
 end
 

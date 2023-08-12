@@ -206,4 +206,18 @@ describe "should not overwrite sub-tables memory when reassigning values in a Ta
     # Verify that read_table wasn't modified by reassignment of "foo"
     read_table.should eq child_table
   end
+
+  it "can add fields" do
+    t1 = AMQ::Protocol::Table.new({"foo": "bar"})
+    t1["x-stream-offset"] = 1i64
+    t1["x-delay"]?.should be_nil
+    t1.to_h.should eq({"foo" => "bar", "x-stream-offset" => 1i64})
+  end
+
+  it "can add to fields to empty" do
+    t1 = AMQ::Protocol::Table.new
+    t1["x-stream-offset"] = 1i64
+    t1["x-delay"]?.should be_nil
+    t1.to_h.should eq({"x-stream-offset" => 1i64})
+  end
 end
