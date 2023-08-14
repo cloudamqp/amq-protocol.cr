@@ -174,7 +174,7 @@ module AMQ
         abstract def class_id : UInt16
         abstract def method_id : UInt16
 
-        def wrap(io, format)
+        def wrap(io, format, &)
           super(io, format) do
             buf = uninitialized UInt8[4]
             slice = buf.to_slice
