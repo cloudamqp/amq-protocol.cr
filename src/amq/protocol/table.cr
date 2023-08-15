@@ -315,9 +315,9 @@ module AMQ
 
       private def ensure_capacity(size : Int)
         if @bytesize + size > @capacity
-          capacity = Math.pw2ceil(@bytesize + size)
-          @buffer = GC.realloc(@buffer, capacity)
-          @capacity = capacity
+          required_capacity = @bytesize + size
+          @buffer = GC.realloc(@buffer, required_capacity)
+          @capacity = required_capacity
         end
       end
 
