@@ -188,7 +188,9 @@ module AMQ
 
       def self.from_bytes(bytes, format = BYTEFORMAT) : self
         size = format.decode(UInt32, bytes[0, 4])
-        self.new(bytes[4, size])
+        copy = Bytes.new(size)
+        bytes[4, size].copy_to(copy)
+        self.new(copy)
       end
 
       def self.from_io(io, format, size : UInt32? = nil) : self
@@ -303,7 +305,7 @@ module AMQ
           tbl_slice = value.to_slice
           ensure_capacity(1 + sizeof(UInt32) + tbl_slice.size)
           write_prefix(value)
-          write_int(tbl_slice.size)
+          write_int(tbl_slice.size.to_u32)
           tbl_slice.copy_to(@buffer + @bytesize, tbl_slice.size)
           @bytesize += tbl_slice.size
         when Nil
@@ -314,10 +316,11 @@ module AMQ
       end
 
       private def ensure_capacity(size : Int)
-        if @bytesize + size > @capacity
-          required_capacity = @bytesize + size
-          @buffer = GC.realloc(@buffer, required_capacity)
-          @capacity = required_capacity
+        required_capacity = @bytesize + size
+        if required_capacity > @capacity
+          capacity = Math.pw2ceil(required_capacity)
+          @buffer = GC.realloc(@buffer, capacity)
+          @capacity = capacity
         end
       end
 
