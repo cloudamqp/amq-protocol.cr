@@ -170,9 +170,9 @@ module AMQ
           start_pos = @pos
           if key == read_short_string
             v = read_field
-            length = @pos - start_pos
-            to_slice(@pos).move_to(@buffer + start_pos, length)
-            @bytesize -= length
+            kv_length = @pos - start_pos
+            (@buffer + @pos).move_to(@buffer + start_pos, @bytesize - @pos)
+            @bytesize -= kv_length
             return v
           else
             skip_field
@@ -204,6 +204,40 @@ module AMQ
 
       def to_slice(pos = 0, length = @bytesize - pos)
         Bytes.new(@buffer + pos, length)
+      end
+
+      def reject!(& : String, Field -> _) : self
+        @pos = 0
+        while @pos < @bytesize
+          start_pos = @pos
+          key = read_short_string
+          value = read_field
+          if yield key, value
+            kv_length = @pos - start_pos
+            (@buffer + @pos).move_to(@buffer + start_pos, @bytesize - @pos)
+            @bytesize -= kv_length
+            @pos -= kv_length
+          end
+        end
+        self
+      end
+
+      def merge!(hash : Hash(String, Field) | NamedTuple) : self
+        capacity = 0
+        hash.each { |k, v| capacity += 1 + k.to_s.bytesize + 1 + capacity_required(v) }
+        ensure_capacity(capacity)
+        hash.each do |key, value|
+          write_short_string(key.to_s)
+          write_field(value)
+        end
+        self
+      end
+
+      def merge!(other : self) : self
+        bytesize = other.bytesize - sizeof(UInt32)
+        ensure_capacity(bytesize)
+        other.to_slice.copy_to(@buffer + @bytesize, bytesize)
+        self
       end
 
       private def write_short_string(str : String)
