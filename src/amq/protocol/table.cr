@@ -397,7 +397,7 @@ module AMQ
         when 'l' then sizeof(Int64)
         when 'f' then sizeof(Float32)
         when 'd' then sizeof(Float64)
-        when 'D' then 1 + sizeof(UInt32)
+        when 'D' then 1 + sizeof(Int32)
         when 'T' then sizeof(Int64)
         when 'S' then 4 + BYTEFORMAT.decode(UInt32, to_slice(@pos))
         when 'x' then 4 + BYTEFORMAT.decode(UInt32, to_slice(@pos))
@@ -493,8 +493,8 @@ module AMQ
 
       private def read_decimal : Float64
         scale = to_slice[@pos]
-        value = BYTEFORMAT.decode(UInt32, to_slice(@pos + 1))
-        @pos += 1 + sizeof(UInt32)
+        value = BYTEFORMAT.decode(Int32, to_slice(@pos + 1))
+        @pos += 1 + sizeof(Int32)
         value / 10**scale
       end
 
