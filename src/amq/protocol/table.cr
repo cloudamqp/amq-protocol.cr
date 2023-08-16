@@ -9,6 +9,7 @@ module AMQ
       @capacity = 0
       @bytesize = 0
       @pos = 0
+      @read_only = false
 
       def initialize(hash : Hash(String, Field) | NamedTuple)
         hash.each { |k, v| @capacity += 1 + k.to_s.bytesize + 1 + capacity_required(v) }
@@ -27,6 +28,7 @@ module AMQ
         bytes ||= Bytes.empty
         @buffer = bytes.to_unsafe
         @bytesize = @capacity = bytes.bytesize
+        @read_only = true
       end
 
       def clone
@@ -114,6 +116,7 @@ module AMQ
       end
 
       def []=(key : String, value : Field)
+        check_writeable
         delete(key)
         write_short_string(key)
         write_field(value)
@@ -165,6 +168,7 @@ module AMQ
       end
 
       def delete(key)
+        check_writeable
         @pos = 0
         while @pos < @bytesize
           start_pos = @pos
@@ -209,6 +213,7 @@ module AMQ
       end
 
       def reject!(& : String, Field -> _) : self
+        check_writeable
         @pos = 0
         while @pos < @bytesize
           start_pos = @pos
@@ -225,6 +230,7 @@ module AMQ
       end
 
       def merge!(hash : Hash(String, Field) | NamedTuple) : self
+        check_writeable
         capacity = 0
         hash.each { |k, v| capacity += 1 + k.to_s.bytesize + 1 + capacity_required(v) }
         ensure_capacity(capacity)
@@ -236,10 +242,16 @@ module AMQ
       end
 
       def merge!(other : self) : self
+        check_writeable
         bytesize = other.bytesize - sizeof(UInt32)
         ensure_capacity(bytesize)
         other.to_slice.copy_to(@buffer + @bytesize, bytesize)
         self
+      end
+
+      private def check_writeable : Nil
+        @buffer = to_slice.dup.to_unsafe if @read_only
+        @read_only = false
       end
 
       private def write_short_string(str : String)
