@@ -287,30 +287,42 @@ module AMQ
           @io.write value
         when Array
           @io.write_byte 'A'.ord.to_u8
-          length_pos = @io.pos
-          @io.write_bytes(0_u32, BYTEFORMAT)
-          start_pos = @io.pos
-          value.each { |v| write_field(v) }
-          end_pos = @io.pos
-          @io.seek length_pos
-          array_bytesize = end_pos - start_pos
-          @io.write_bytes(array_bytesize.to_u32, BYTEFORMAT)
-          @io.seek end_pos
+          prefix_size do
+            value.each do |v|
+              write_field(v)
+            end
+          end
         when Time
           @io.write_byte 'T'.ord.to_u8
           @io.write_bytes(value.to_unix.to_i64, BYTEFORMAT)
         when Table
           @io.write_byte 'F'.ord.to_u8
           @io.write_bytes value, BYTEFORMAT
-        when Hash
+        when Hash, NamedTuple
           @io.write_byte 'F'.ord.to_u8
-          @io.write_bytes Table.new(value), BYTEFORMAT
-        when NamedTuple
-          @io.write_byte 'F'.ord.to_u8
-          @io.write_bytes Table.new(value), BYTEFORMAT
+          prefix_size do
+            value.each do |k, v|
+              ShortString.new(k.to_s).to_io(@io)
+              write_field(v)
+            end
+          end
         when Nil
           @io.write_byte 'V'.ord.to_u8
         else raise Error.new "Unsupported Field type: #{value.class}"
+        end
+      end
+
+      private def prefix_size(&)
+        @io.write_bytes(0_u32, BYTEFORMAT)
+        start_pos = @io.pos
+        begin
+          yield
+        ensure
+          end_pos = @io.pos
+          bytesize = end_pos - start_pos
+          @io.pos = start_pos - sizeof(UInt32)
+          @io.write_bytes(bytesize.to_u32, BYTEFORMAT)
+          @io.pos = end_pos
         end
       end
 
