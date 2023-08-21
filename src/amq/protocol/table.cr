@@ -175,7 +175,7 @@ module AMQ
           if key == read_short_string
             v = read_field
             kv_length = @pos - start_pos
-            (@buffer + @pos).move_to(@buffer + start_pos, @bytesize - @pos)
+            (@buffer + start_pos).move_from(@buffer + @pos, @bytesize - @pos)
             @bytesize -= kv_length
             return v
           else
@@ -192,16 +192,22 @@ module AMQ
 
       def self.from_bytes(bytes, format = BYTEFORMAT) : self
         size = format.decode(UInt32, bytes[0, 4])
-        copy = Bytes.new(size)
-        bytes[4, size].copy_to(copy)
-        self.new(copy)
+        slice = Bytes.new(bytes.to_unsafe + 4, size, read_only: true)
+        self.new(slice)
       end
 
       def self.from_io(io, format, size : UInt32? = nil) : self
         size ||= UInt32.from_io(io, format)
-        buffer = Bytes.new(size)
-        io.read_fully(buffer)
-        self.new(buffer)
+        case io
+        when IO::Memory
+          bytes = Bytes.new(io.buffer + io.pos, size, read_only: true)
+          io.pos += size
+          self.new(bytes)
+        else
+          buffer = Bytes.new(size)
+          io.read_fully(buffer)
+          self.new(buffer)
+        end
       end
 
       def bytesize
@@ -221,7 +227,7 @@ module AMQ
           value = read_field
           if yield key, value
             kv_length = @pos - start_pos
-            (@buffer + @pos).move_to(@buffer + start_pos, @bytesize - @pos)
+            (@buffer + start_pos).move_from(@buffer + @pos, @bytesize - @pos)
             @bytesize -= kv_length
             @pos -= kv_length
           end
@@ -241,16 +247,9 @@ module AMQ
         self
       end
 
-      def merge!(other : self) : self
-        check_writeable
-        bytesize = other.bytesize - sizeof(UInt32)
-        ensure_capacity(bytesize)
-        other.to_slice.copy_to(@buffer + @bytesize, bytesize)
-        self
-      end
-
       private def check_writeable : Nil
-        @buffer = to_slice.dup.to_unsafe if @read_only
+        return unless @read_only
+        @buffer = to_slice.dup.to_unsafe
         @read_only = false
       end
 
