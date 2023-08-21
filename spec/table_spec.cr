@@ -119,6 +119,18 @@ describe AMQ::Protocol::Table do
     t1.to_h.should eq({"b" => "foo"})
   end
 
+  it "supports reject!" do
+    t1 = AMQ::Protocol::Table.new({a: 1, b: "foo"})
+    t1.reject! { |k, v| k.in?("a") }
+    t1.to_h.should eq({"b" => "foo"})
+  end
+
+  it "supports merge!" do
+    t1 = AMQ::Protocol::Table.new({a: 1, b: "foo"})
+    t1.merge!({c: nil})
+    t1.to_h.should eq({"a" => 1, "b" => "foo", "c" => nil})
+  end
+
   it "can add fields" do
     t1 = AMQ::Protocol::Table.new({"foo": "bar"})
     t1["x-stream-offset"] = 1i64

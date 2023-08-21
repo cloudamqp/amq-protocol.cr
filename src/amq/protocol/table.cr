@@ -25,8 +25,10 @@ module AMQ
       def initialize(@io = IO::Memory.new(0))
       end
 
-      def clone
-        Table.new @io.clone
+      def clone : self
+        io = IO::Memory.new(@io.bytesize)
+        io.write @io.to_slice
+        Table.new io
       end
 
       def []?(key : String)
@@ -161,13 +163,14 @@ module AMQ
       end
 
       def delete(key)
+        ensure_writeable
         @io.rewind
         while @io.pos < @io.bytesize
           start_pos = @io.pos
           if key == ShortString.from_io(@io)
             v = read_field
             length = @io.pos - start_pos
-            @io.peek.move_to(@io.to_slice[start_pos, @io.bytesize - start_pos])
+            (@io.buffer + start_pos).move_from(@io.buffer + @io.pos, @io.bytesize - @io.pos)
             @io.bytesize -= length
             return v
           end
@@ -183,20 +186,62 @@ module AMQ
 
       def self.from_bytes(bytes, format) : self
         size = format.decode(UInt32, bytes[0, 4])
-        mem = IO::Memory.new(size)
-        mem.write(bytes[4, size])
+        mem = IO::Memory.new(bytes[4, size], writeable: false)
         self.new(mem)
       end
 
       def self.from_io(io, format, size : UInt32? = nil) : self
         size ||= UInt32.from_io(io, format)
-        mem = IO::Memory.new(size)
-        IO.copy(io, mem, size)
-        self.new(mem)
+        case io
+        when IO::Memory
+          bytes = io.to_slice[io.pos, size]
+          io.pos += size
+          self.new(IO::Memory.new(bytes, writeable: false))
+        else
+          mem = IO::Memory.new(size)
+          IO.copy(io, mem, size)
+          self.new(mem)
+        end
       end
 
       def bytesize
         sizeof(UInt32) + @io.bytesize
+      end
+
+      def reject!(& : String, Field -> _) : self
+        ensure_writeable
+        @io.rewind
+        while @io.pos < @io.bytesize
+          start_pos = @io.pos
+          key = ShortString.from_io(@io)
+          value = read_field
+          if yield(key, value)
+            length = @io.pos - start_pos
+            (@io.buffer + start_pos).move_from(@io.buffer + @io.pos, @io.bytesize - @io.pos)
+            @io.bytesize -= length
+            @io.pos -= length
+          end
+        end
+        self
+      end
+
+      def merge!(hash : Hash(String, Field) | NamedTuple) : self
+        ensure_writeable
+        @io.rewind
+        hash.each do |key, value|
+          delete(key)
+          @io.skip_to_end
+          @io.write_bytes(ShortString.new(key.to_s))
+          write_field(value)
+        end
+        self
+      end
+
+      private def ensure_writeable
+        return if @io.@writeable.as(Bool)
+        writeable_io = IO::Memory.new(@io.bytesize)
+        @io.to_slice.copy_to(writeable_io.buffer, writeable_io.bytesize)
+        @io = writeable_io
       end
 
       private def write_field(value)
@@ -339,19 +384,22 @@ module AMQ
         @io.read_fully bytes
         bytes
       end
-
-      class IO::Memory
-        def bytesize=(value)
-          @bytesize = value
-        end
-
-        def clone
-          rewind
-          io = IO::Memory.new bytesize
-          IO.copy self, io
-          io
-        end
-      end
     end
+  end
+end
+
+class IO::Memory
+  def bytesize=(value)
+    @bytesize = value
+  end
+end
+
+require "json/builder"
+require "base64"
+
+struct Slice
+  # Encodes the slice as a base64 encoded string
+  def to_json(json : JSON::Builder)
+    json.string Base64.encode(self)
   end
 end
