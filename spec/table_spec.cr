@@ -44,6 +44,7 @@ describe AMQ::Protocol::Table do
     io.pos = 0
     data2 = AMQ::Protocol::Table.from_io(io, IO::ByteFormat::NetworkEndian)
     data2.should eq tbl
+    data2.to_h.should eq data
   end
 
   it "can be modified" do
@@ -83,6 +84,7 @@ describe AMQ::Protocol::Table do
   it "can be encoded and decoded JSON::Any" do
     data = JSON.parse("{ \"a\": 1, \"b\": \"string\", \"c\": 0.2, \"d\": [1,2], \"e\": null }").as_h
     tbl = AMQ::Protocol::Table.new(data)
+    tbl.to_h.should eq({"a" => 1, "b" => "string", "c" => 0.2, "d" => [1, 2], "e" => nil})
     io = IO::Memory.new
     io.write_bytes tbl, IO::ByteFormat::NetworkEndian
     io.pos.should eq(tbl.bytesize)
@@ -97,5 +99,37 @@ describe AMQ::Protocol::Table do
     t2.should eq t1
     t2["c"] = 2
     t2.should_not eq t1
+  end
+
+  it "can be json serialized" do
+    data = {a: 1, b: "string", c: 0.2, d: [1, 2], e: nil}
+    t1 = AMQ::Protocol::Table.new(data)
+    json = t1.to_json
+    json.should eq data.to_json
+  end
+
+  it "can be empty" do
+    t1 = AMQ::Protocol::Table.new(nil)
+    t1.should be_empty
+  end
+
+  it "supports #delete" do
+    t1 = AMQ::Protocol::Table.new({a: 1, b: "foo"})
+    t1.delete("a").should eq 1
+    t1.to_h.should eq({"b" => "foo"})
+  end
+
+  it "can add fields" do
+    t1 = AMQ::Protocol::Table.new({"foo": "bar"})
+    t1["x-stream-offset"] = 1i64
+    t1["x-delay"]?.should be_nil
+    t1.to_h.should eq({"foo" => "bar", "x-stream-offset" => 1i64})
+  end
+
+  it "can add to fields to empty" do
+    t1 = AMQ::Protocol::Table.new
+    t1["x-stream-offset"] = 1i64
+    t1["x-delay"]?.should be_nil
+    t1.to_h.should eq({"x-stream-offset" => 1i64})
   end
 end
