@@ -287,7 +287,7 @@ module AMQ
         when 'A' then @io.skip(UInt32.from_io(@io, BYTEFORMAT))
         when 'T' then @io.skip(sizeof(Int64))
         when 'F' then @io.skip(UInt32.from_io(@io, BYTEFORMAT))
-        when 'D' then @io.skip(1 + sizeof(UInt32))
+        when 'D' then @io.skip(1 + sizeof(Int32))
         when 'V' then @io.skip(0)
         else          raise Error.new "Unknown field type '#{type}'"
         end
@@ -310,19 +310,17 @@ module AMQ
         when 'x' then read_slice
         when 'A' then read_array(table_to_h)
         when 'T' then Time.unix(Int64.from_io(@io, BYTEFORMAT))
-        when 'F' then table_to_h ? Table.from_io(@io, BYTEFORMAT).to_h : Table.from_io(@io, BYTEFORMAT)
-        when 'D' then Decimal.from_io(@io, BYTEFORMAT)
+        when 'F' then t = Table.from_io(@io, BYTEFORMAT); table_to_h ? t.to_h : t
+        when 'D' then read_decimal
         when 'V' then nil
         else          raise Error.new "Unknown field type '#{type}'"
         end
       end
 
-      struct Decimal
-        def self.from_io(io, format) : Float64
-          scale = io.read_byte || raise IO::EOFError.new
-          value = UInt32.from_io(io, format)
-          value / 10**scale
-        end
+      private def read_decimal : Float64
+        scale = @io.read_byte || raise IO::EOFError.new
+        value = Int32.from_io(@io, BYTEFORMAT)
+        value / 10**scale
       end
 
       private def read_array(table_to_h = false)
