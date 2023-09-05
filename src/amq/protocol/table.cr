@@ -240,7 +240,7 @@ module AMQ
       private def ensure_writeable
         return if @io.@writeable.as(Bool)
         writeable_io = IO::Memory.new(@io.bytesize)
-        @io.to_slice.copy_to(writeable_io.buffer, writeable_io.bytesize)
+        writeable_io.write @io.to_slice
         @io = writeable_io
       end
 
