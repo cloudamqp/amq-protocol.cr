@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.9] - 2023-08-22
+
+### Fixed
+
+- Fixed issue where copying directly to the buffer didn't update the position in the IO, causing subsequent writes to overwrite existing data.
+
 ## [1.1.8] - 2023-08-22
 
 ### Changed
