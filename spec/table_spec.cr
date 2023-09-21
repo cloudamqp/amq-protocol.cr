@@ -146,7 +146,7 @@ describe AMQ::Protocol::Table do
   end
 
   it "can handle nestled Tables" do
-    parent_table = AMQ::Protocol::Table.new()
+    parent_table = AMQ::Protocol::Table.new
     child_table = AMQ::Protocol::Table.new({"abc": "123"})
     parent_table["tbl"] = child_table
 
@@ -158,7 +158,7 @@ describe AMQ::Protocol::Table do
 
     comparison_table = AMQ::Protocol::Table.new({
       "tbl": AMQ::Protocol::Table.new({"abc": "123"}),
-      "foo": "bar"
+      "foo": "bar",
     })
     parent_table.should eq comparison_table
   end
