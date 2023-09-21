@@ -144,4 +144,22 @@ describe AMQ::Protocol::Table do
     t1["x-delay"]?.should be_nil
     t1.to_h.should eq({"x-stream-offset" => 1i64})
   end
+
+  it "can handle nestled Tables" do
+    parent_table = AMQ::Protocol::Table.new()
+    child_table = AMQ::Protocol::Table.new({"abc": "123"})
+    parent_table["tbl"] = child_table
+
+    read_table = parent_table["tbl"].as(AMQ::Protocol::Table)
+    parent_table.delete("tbl")
+
+    parent_table["foo"] = "bar"
+    parent_table["tbl"] = read_table
+
+    comparison_table = AMQ::Protocol::Table.new({
+      "tbl": AMQ::Protocol::Table.new({"abc": "123"}),
+      "foo": "bar"
+    })
+    parent_table.should eq comparison_table
+  end
 end
