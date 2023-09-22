@@ -194,9 +194,15 @@ module AMQ
         size ||= UInt32.from_io(io, format)
         case io
         when IO::Memory
-          bytes = io.to_slice[io.pos, size]
-          io.pos += size
-          self.new(IO::Memory.new(bytes, writeable: false))
+          if io.@writeable
+            mem = IO::Memory.new(size)
+            IO.copy(io, mem, size)
+            self.new(mem)
+          else
+            bytes = io.to_slice[io.pos, size]
+            io.pos += size
+            self.new(IO::Memory.new(bytes, writeable: false))
+          end
         else
           mem = IO::Memory.new(size)
           IO.copy(io, mem, size)

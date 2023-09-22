@@ -145,3 +145,39 @@ describe AMQ::Protocol::Table do
     t1.to_h.should eq({"x-stream-offset" => 1i64})
   end
 end
+
+# Verifies bugfix for Sub-table memory corruption
+# https://github.com/cloudamqp/amq-protocol.cr/pull/14
+describe "should not overwrite sub-tables memory when reassigning values in a Table" do
+  it "when reassigning a Table" do
+    parent_table = AMQ::Protocol::Table.new
+    child_table = AMQ::Protocol::Table.new({"a": "b"})
+    parent_table["table"] = child_table
+
+    # Read child_table from io
+    table_from_io = parent_table["table"].as(AMQ::Protocol::Table)
+
+    # Overwrite child_table data in parent_table
+    parent_table["table"] = "foo"
+
+    # Verify that read_table wasn't modified by reassignment of "table"
+    table_from_io.should eq child_table
+  end
+
+  it "when reassigning a string" do
+    parent_table = AMQ::Protocol::Table.new
+    child_table = AMQ::Protocol::Table.new({"abc": "123"})
+
+    parent_table["foo"] = "bar"
+    parent_table["tbl"] = child_table
+
+    # Read child_table from io
+    read_table = parent_table["tbl"].as(AMQ::Protocol::Table)
+
+    # Overwrite string "foo" in parent_table
+    parent_table["foo"] = "foooo"
+
+    # Verify that read_table wasn't modified by reassignment of "foo"
+    read_table.should eq child_table
+  end
+end
