@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.10] - 2023-09-22
+
+### Fixed
+
+- Fixed an issue where reassigning values in a Table with a nested Table would overwrite existing data.
+
 ## [1.1.9] - 2023-08-22
 
 ### Fixed
