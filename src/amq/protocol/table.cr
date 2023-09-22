@@ -231,10 +231,10 @@ module AMQ
         self
       end
 
-      def merge!(hash : Hash(String, Field) | NamedTuple) : self
+      def merge!(other : Hash(String, Field) | NamedTuple | self) : self
         ensure_writeable
         @io.rewind
-        hash.each do |key, value|
+        other.each do |key, value|
           delete(key)
           @io.skip_to_end
           @io.write_bytes(ShortString.new(key.to_s))
