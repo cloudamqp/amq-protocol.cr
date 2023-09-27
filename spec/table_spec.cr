@@ -119,16 +119,31 @@ describe AMQ::Protocol::Table do
     t1.to_h.should eq({"b" => "foo"})
   end
 
-  it "supports reject!" do
+  it "supports #reject!" do
     t1 = AMQ::Protocol::Table.new({a: 1, b: "foo"})
     t1.reject! { |k, v| k.in?("a") }
     t1.to_h.should eq({"b" => "foo"})
   end
 
-  it "supports merge!" do
-    t1 = AMQ::Protocol::Table.new({a: 1, b: "foo"})
-    t1.merge!({c: nil})
-    t1.to_h.should eq({"a" => 1, "b" => "foo", "c" => nil})
+  describe "#merge!" do
+    it "supports Table" do
+      t1 = AMQ::Protocol::Table.new({a: 1, b: "foo"})
+      t2 = AMQ::Protocol::Table.new({c: nil})
+      t1.merge!(t2)
+      t1.to_h.should eq({"a" => 1, "b" => "foo", "c" => nil})
+    end
+
+    it "supports NamedTuple" do
+      t1 = AMQ::Protocol::Table.new({a: 1, b: "foo"})
+      t1.merge!({c: nil})
+      t1.to_h.should eq({"a" => 1, "b" => "foo", "c" => nil})
+    end
+
+    it "supports Hash(String, Field)" do
+      t1 = AMQ::Protocol::Table.new({a: 1, b: "foo"})
+      t1.merge!({"c" => nil} of String => AMQ::Protocol::Field)
+      t1.to_h.should eq({"a" => 1, "b" => "foo", "c" => nil})
+    end
   end
 
   it "can add fields" do
