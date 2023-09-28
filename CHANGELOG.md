@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.11] - 2023-09-28
+
+### Added
+
 - Add support for Table to be merged with another Table
 
 ## [1.1.10] - 2023-09-22
