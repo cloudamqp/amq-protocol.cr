@@ -55,11 +55,6 @@ module AMQ
         yield
       end
 
-      @[Deprecated("key must be string")]
-      def has_key?(key : Symbol)
-        has_key?(key.to_s)
-      end
-
       def has_key?(key : String) : Bool
         @io.rewind
         while @io.pos < @io.bytesize
@@ -70,6 +65,11 @@ module AMQ
           end
         end
         false
+      end
+
+      @[Deprecated("key must be string")]
+      def has_key?(key)
+        has_key?(key.to_s)
       end
 
       def each(& : (String, Field) -> Nil)
@@ -167,11 +167,6 @@ module AMQ
         true
       end
 
-      @[Deprecated("key must be string")]
-      def delete(key : Symbol)
-        delete(key.to_s)
-      end
-
       def delete(key : String)
         ensure_writeable
         @io.rewind
@@ -187,6 +182,11 @@ module AMQ
           skip_field
         end
         nil
+      end
+
+      @[Deprecated("key must be string")]
+      def delete(key)
+        delete(key.to_s)
       end
 
       def to_io(io, format) : Nil
