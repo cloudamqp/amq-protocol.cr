@@ -55,7 +55,7 @@ module AMQ
         yield
       end
 
-      def has_key?(key) : Bool
+      def has_key?(key : String) : Bool
         @io.rewind
         while @io.pos < @io.bytesize
           if key == ShortString.from_io(@io)
@@ -65,6 +65,11 @@ module AMQ
           end
         end
         false
+      end
+
+      @[Deprecated("key must be string")]
+      def has_key?(key)
+        has_key?(key.to_s)
       end
 
       def each(& : (String, Field) -> Nil)
@@ -162,7 +167,7 @@ module AMQ
         true
       end
 
-      def delete(key)
+      def delete(key : String)
         ensure_writeable
         @io.rewind
         while @io.pos < @io.bytesize
@@ -177,6 +182,11 @@ module AMQ
           skip_field
         end
         nil
+      end
+
+      @[Deprecated("key must be string")]
+      def delete(key)
+        delete(key.to_s)
       end
 
       def to_io(io, format) : Nil
@@ -235,7 +245,7 @@ module AMQ
         ensure_writeable
         @io.rewind
         other.each do |key, value|
-          delete(key)
+          delete(key.to_s)
           @io.skip_to_end
           @io.write_bytes(ShortString.new(key.to_s))
           write_field(value)

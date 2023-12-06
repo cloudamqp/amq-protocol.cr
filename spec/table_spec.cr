@@ -116,6 +116,7 @@ describe AMQ::Protocol::Table do
   it "supports #delete" do
     t1 = AMQ::Protocol::Table.new({a: 1, b: "foo"})
     t1.delete("a").should eq 1
+    t1["a"]?.should be_nil
     t1.to_h.should eq({"b" => "foo"})
   end
 
@@ -135,8 +136,12 @@ describe AMQ::Protocol::Table do
 
     it "supports NamedTuple" do
       t1 = AMQ::Protocol::Table.new({a: 1, b: "foo"})
-      t1.merge!({c: nil})
-      t1.to_h.should eq({"a" => 1, "b" => "foo", "c" => nil})
+      t1.merge!({c: nil, b: "bar"})
+      t1["a"].should eq 1
+      t1["b"].should eq "bar"
+      t1["c"].should eq nil
+      t1.size.should eq 3
+      t1.to_h.should eq({"a" => 1, "b" => "bar", "c" => nil})
     end
 
     it "supports Hash(String, Field)" do
