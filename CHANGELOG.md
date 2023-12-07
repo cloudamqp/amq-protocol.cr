@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.12] - 2023-12-07
+
+### Fixed
+
+- Fixed an issue where Table#merge with NamedTuple failed to replace the old value and instead just added another entry for the same key.
+
+### Changed
+
+- Table#delete and Table#has_key? now only accepts String argument. Other types will issue a deprecation warning.
+
 ## [1.1.11] - 2023-09-28
 
 ### Added
