@@ -20,6 +20,9 @@ module AMQ
         io.write_byte 206_u8
       end
 
+      # Parse a frame from an IO
+      #
+      # Requires a block, because the Body is not buffered and can instead be streamed efficiently.
       def self.from_io(io, format = IO::ByteFormat::NetworkEndian, & : Frame -> _)
         buf = uninitialized UInt8[7]
         slice = buf.to_slice
@@ -50,6 +53,36 @@ module AMQ
           end
           raise ex
         end
+      end
+
+      # Parse a frame from an IO
+      #
+      # Note that this method buffers `BytesBody` frames,
+      # only use this method if you don't require the best performance.
+      def self.from_io(io, format = IO::ByteFormat::NetworkEndian)
+        buf = uninitialized UInt8[7]
+        slice = buf.to_slice
+        io.read_fully(slice)
+        type = slice[0]
+        channel = format.decode(UInt16, slice[1, 2])
+        size = format.decode(UInt32, slice[3, 4])
+        frame =
+          case type
+          when Method::TYPE then Method.from_io(channel, size, io, format)
+          when Header::TYPE then Header.from_io(channel, size, io, format)
+          when Body::TYPE
+            bytes = Bytes.new(size)
+            io.read_fully bytes
+            BytesBody.new(channel, size, bytes)
+          when Heartbeat::TYPE then Heartbeat.new
+          else
+            raise Error::FrameDecode.new("Invalid frame type #{type}")
+          end
+
+        if (frame_end = io.read_byte) && frame_end != 206_u8
+          raise Error::InvalidFrameEnd.new("#{frame.class}-end was #{frame_end}, expected 206")
+        end
+        frame
       end
 
       def to_slice(format = IO::ByteFormat::SystemEndian) : Bytes
