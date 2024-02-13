@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.13] - 2024-02-13
+
+### Added
+
+- Connection#UpdateSecret/Ok frame definition
+
 ## [1.1.12] - 2023-12-07
 
 ### Fixed
