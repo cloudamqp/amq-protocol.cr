@@ -206,6 +206,8 @@ module AMQ
             when 51_u16 then Connection::CloseOk.from_io(io, bytesize, format)
             when 60_u16 then Connection::Blocked.from_io(io, bytesize, format)
             when 61_u16 then Connection::Unblocked.from_io(io, bytesize, format)
+            when 70_u16 then Connection::UpdateSecret.from_io(io, bytesize, format)
+            when 71_u16 then Connection::UpdateSecretOk.from_io(io, bytesize, format)
             else             raise Error::NotImplemented.new(channel, class_id, method_id)
             end
           when 20_u16
@@ -569,6 +571,50 @@ module AMQ
 
         struct Unblocked < Connection
           METHOD_ID = 61_u16
+
+          def method_id : UInt16
+            METHOD_ID
+          end
+
+          def to_io(io, format)
+            wrap(io, format) { }
+          end
+
+          def self.from_io(io, bytesize, format)
+            self.new
+          end
+        end
+
+        struct UpdateSecret < Connection
+          METHOD_ID = 70_u16
+
+          def method_id : UInt16
+            METHOD_ID
+          end
+
+          getter reason
+
+          def initialize(@secret : String, @reason : String, bytesize = nil)
+            bytesize ||= 4 + @secret.bytesize + 1 + @reason.bytesize
+            super(bytesize.to_u32)
+          end
+
+          def to_io(io, format)
+            wrap(io, format) do
+              io.write_bytes LongString.new(@secret), format
+              io.write_bytes ShortString.new(@reason), format
+            end
+          end
+
+          def self.from_io(io, bytesize, format)
+            secret = LongString.from_io(io, format)
+            reason = ShortString.from_io(io, format)
+            self.new(secret, reason, bytesize)
+          end
+        end
+
+        struct UpdateSecretOk < Connection
+          METHOD_ID = 71_u16
 
           def method_id : UInt16
             METHOD_ID
