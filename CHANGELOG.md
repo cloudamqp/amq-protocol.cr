@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.14] - 2024-02-17
+
+### Added
+
+- Frame#from_io without a block, buffering the whole frame instead. Only makes a difference for body frames, which can be streamed with the block version but not with this new one.
+
 ## [1.1.13] - 2024-02-13
 
 ### Added
