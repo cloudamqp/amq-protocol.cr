@@ -4,7 +4,7 @@ module AMQ
   module Protocol
     struct Properties
       @[Flags]
-      private enum Has : UInt16
+      enum Has : UInt16
         ContentType     = 0x8000_u16
         ContentEncoding = 0x4000_u16
         Headers         = 0x2000_u16
