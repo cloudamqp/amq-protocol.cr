@@ -164,6 +164,12 @@ describe AMQ::Protocol::Table do
     t1["x-delay"]?.should be_nil
     t1.to_h.should eq({"x-stream-offset" => 1i64})
   end
+
+  it "hash values for two semantically tables are the same" do
+    t1 = AMQ::Protocol::Table.new({a: 1, b: "foo"})
+    t2 = AMQ::Protocol::Table.new({b: "foo", a: 1})
+    t1.hash.should eq t2.hash
+  end
 end
 
 # Verifies bugfix for Sub-table memory corruption
