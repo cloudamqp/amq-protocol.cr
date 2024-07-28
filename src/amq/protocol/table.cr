@@ -167,6 +167,23 @@ module AMQ
         true
       end
 
+      # See `Object#hash(hasher)`
+      def hash(hasher)
+        # Copied from Hash#hash
+        # The hash value must be the same regardless of the
+        # order of the keys.
+        result = hasher.result
+
+        each do |key, value|
+          copy = hasher
+          copy = key.hash(copy)
+          copy = value.hash(copy)
+          result &+= copy.result
+        end
+
+        result.hash(hasher)
+      end
+
       def delete(key : String)
         ensure_writeable
         @io.rewind
