@@ -84,6 +84,10 @@ describe AMQ::Protocol::Properties do
     json = JSON.parse(%({"content_type": "application/json", "headers": {"a": 1}}))
     props = AMQ::Protocol::Properties.from_json(json)
     props.content_type.should eq "application/json"
-    props.headers.not_nil!["a"].should eq 1
+    if h = props.headers
+      h["a"].should eq 1
+    else
+      fail "headers is nil"
+    end
   end
 end
