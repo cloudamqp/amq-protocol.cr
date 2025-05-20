@@ -214,7 +214,7 @@ module AMQ
       def self.from_bytes(bytes, format) : self
         size = format.decode(UInt32, bytes[0, 4])
         mem = IO::Memory.new(bytes[4, size], writeable: false)
-        self.new(mem)
+        new(mem)
       end
 
       def self.from_io(io, format, size : UInt32? = nil) : self
@@ -224,16 +224,16 @@ module AMQ
           if io.@writeable
             mem = IO::Memory.new(size)
             IO.copy(io, mem, size)
-            self.new(mem)
+            new(mem)
           else
             bytes = io.to_slice[io.pos, size]
             io.pos += size
-            self.new(IO::Memory.new(bytes, writeable: false))
+            new(IO::Memory.new(bytes, writeable: false))
           end
         else
           mem = IO::Memory.new(size)
           IO.copy(io, mem, size)
-          self.new(mem)
+          new(mem)
         end
       end
 

@@ -122,7 +122,7 @@ describe AMQ::Protocol::Table do
 
   it "supports #reject!" do
     t1 = AMQ::Protocol::Table.new({a: 1, b: "foo"})
-    t1.reject! { |k, v| k.in?("a") }
+    t1.reject! { |k, _v| k.in?("a") }
     t1.to_h.should eq({"b" => "foo"})
   end
 
@@ -139,7 +139,7 @@ describe AMQ::Protocol::Table do
       t1.merge!({c: nil, b: "bar"})
       t1["a"].should eq 1
       t1["b"].should eq "bar"
-      t1["c"].should eq nil
+      t1["c"].should be_nil
       t1.size.should eq 3
       t1.to_h.should eq({"a" => 1, "b" => "bar", "c" => nil})
     end

@@ -127,7 +127,7 @@ module AMQ
           body_size = format.decode(UInt64, slice[4, 8])
           property_flags = format.decode(UInt16, slice[12, 2])
           props = Properties.from_io(io, format, property_flags)
-          self.new channel, class_id, weight, body_size, props, bytesize
+          new channel, class_id, weight, body_size, props, bytesize
         end
       end
 
@@ -378,7 +378,7 @@ module AMQ
             server_properties = Table.from_io(io, format)
             mech = LongString.from_io(io, format)
             locales = LongString.from_io(io, format)
-            self.new(version_major, version_minor, server_properties, mech, locales, bytesize)
+            new(version_major, version_minor, server_properties, mech, locales, bytesize)
           end
         end
 
@@ -412,7 +412,7 @@ module AMQ
             mech = ShortString.from_io(io, format)
             auth = LongString.from_io(io, format)
             locale = ShortString.from_io(io, format)
-            self.new(props, mech, auth, locale, bytesize)
+            new(props, mech, auth, locale, bytesize)
           end
         end
 
@@ -440,7 +440,7 @@ module AMQ
             channel_max = UInt16.from_io(io, format)
             frame_max = UInt32.from_io(io, format)
             heartbeat = UInt16.from_io(io, format)
-            self.new(channel_max, frame_max, heartbeat)
+            new(channel_max, frame_max, heartbeat)
           end
         end
 
@@ -468,7 +468,7 @@ module AMQ
             channel_max = UInt16.from_io(io, format)
             frame_max = UInt32.from_io(io, format)
             heartbeat = UInt16.from_io(io, format)
-            self.new(channel_max, frame_max, heartbeat)
+            new(channel_max, frame_max, heartbeat)
           end
         end
 
@@ -497,7 +497,7 @@ module AMQ
             vhost = ShortString.from_io(io, format)
             reserved1 = ShortString.from_io(io, format)
             reserved2 = (io.read_byte || raise IO::EOFError.new) > 0
-            self.new(vhost, reserved1, reserved2, bytesize)
+            new(vhost, reserved1, reserved2, bytesize)
           end
         end
 
@@ -523,7 +523,7 @@ module AMQ
 
           def self.from_io(io, bytesize, format)
             reserved1 = ShortString.from_io(io, format)
-            self.new(reserved1, bytesize)
+            new(reserved1, bytesize)
           end
         end
 
@@ -556,7 +556,7 @@ module AMQ
             text = ShortString.from_io(io, format)
             failing_class_id = UInt16.from_io(io, format)
             failing_method_id = UInt16.from_io(io, format)
-            self.new(code, text, failing_class_id, failing_method_id, bytesize)
+            new(code, text, failing_class_id, failing_method_id, bytesize)
           end
         end
 
@@ -572,7 +572,7 @@ module AMQ
           end
 
           def self.from_io(io, bytesize, format)
-            self.new
+            new
           end
         end
 
@@ -598,7 +598,7 @@ module AMQ
 
           def self.from_io(io, bytesize, format)
             reason = ShortString.from_io(io, format)
-            self.new(reason, bytesize)
+            new(reason, bytesize)
           end
         end
 
@@ -614,7 +614,7 @@ module AMQ
           end
 
           def self.from_io(io, bytesize, format)
-            self.new
+            new
           end
         end
 
@@ -642,7 +642,7 @@ module AMQ
           def self.from_io(io, bytesize, format)
             secret = LongString.from_io(io, format)
             reason = ShortString.from_io(io, format)
-            self.new(secret, reason, bytesize)
+            new(secret, reason, bytesize)
           end
         end
 
@@ -658,7 +658,7 @@ module AMQ
           end
 
           def self.from_io(io, bytesize, format)
-            self.new
+            new
           end
         end
       end
@@ -692,7 +692,7 @@ module AMQ
 
           def self.from_io(channel, bytesize, io, format)
             reserved1 = ShortString.from_io(io, format)
-            self.new channel, reserved1, bytesize
+            new channel, reserved1, bytesize
           end
         end
 
@@ -718,7 +718,7 @@ module AMQ
 
           def self.from_io(channel, bytesize, io, format)
             reserved1 = LongString.from_io(io, format)
-            self.new channel, reserved1, bytesize
+            new channel, reserved1, bytesize
           end
         end
 
@@ -743,7 +743,7 @@ module AMQ
 
           def self.from_io(channel, bytesize, io, format)
             active = (io.read_byte || raise IO::EOFError.new) > 0
-            self.new channel, active
+            new channel, active
           end
         end
 
@@ -768,7 +768,7 @@ module AMQ
 
           def self.from_io(channel, bytesize, io, format)
             active = (io.read_byte || raise IO::EOFError.new) > 0
-            self.new channel, active
+            new channel, active
           end
         end
 
@@ -801,7 +801,7 @@ module AMQ
             reply_text = ShortString.from_io(io, format)
             classid = UInt16.from_io(io, format)
             methodid = UInt16.from_io(io, format)
-            self.new channel, reply_code, reply_text, classid, methodid, bytesize
+            new channel, reply_code, reply_text, classid, methodid, bytesize
           end
         end
 
@@ -817,7 +817,7 @@ module AMQ
           end
 
           def self.from_io(channel, bytesize, io, format)
-            self.new channel
+            new channel
           end
         end
       end
@@ -874,7 +874,7 @@ module AMQ
             no_wait = bits.bit(4) == 1
             args = Table.from_io(io, format)
 
-            self.new channel, reserved1, name, type, passive, durable, auto_delete, internal, no_wait, args, bytesize
+            new channel, reserved1, name, type, passive, durable, auto_delete, internal, no_wait, args, bytesize
           end
         end
 
@@ -890,7 +890,7 @@ module AMQ
           end
 
           def self.from_io(channel, bytesize, io, format)
-            self.new(channel)
+            new(channel)
           end
         end
 
@@ -926,7 +926,7 @@ module AMQ
             bits = io.read_byte || raise IO::EOFError.new
             if_unused = bits.bit(0) == 1
             no_wait = bits.bit(1) == 1
-            self.new channel, reserved1, name, if_unused, no_wait, bytesize
+            new channel, reserved1, name, if_unused, no_wait, bytesize
           end
         end
 
@@ -942,7 +942,7 @@ module AMQ
           end
 
           def self.from_io(channel, bytesize, io, format)
-            self.new(channel)
+            new(channel)
           end
         end
 
@@ -983,7 +983,7 @@ module AMQ
             bits = io.read_byte || raise IO::EOFError.new
             no_wait = bits.bit(0) == 1
             args = Table.from_io(io, format)
-            self.new channel, reserved1, destination, source, routing_key, no_wait, args, bytesize
+            new channel, reserved1, destination, source, routing_key, no_wait, args, bytesize
           end
         end
 
@@ -999,7 +999,7 @@ module AMQ
           end
 
           def self.from_io(channel, bytesize, io, format)
-            self.new(channel)
+            new(channel)
           end
         end
 
@@ -1039,7 +1039,7 @@ module AMQ
             bits = io.read_byte || raise IO::EOFError.new
             no_wait = bits.bit(0) == 1
             args = Table.from_io(io, format)
-            self.new channel, reserved1, destination, source, routing_key, no_wait, args, bytesize
+            new channel, reserved1, destination, source, routing_key, no_wait, args, bytesize
           end
         end
 
@@ -1055,7 +1055,7 @@ module AMQ
           end
 
           def self.from_io(channel, bytesize, io, format)
-            self.new(channel, bytesize)
+            new(channel, bytesize)
           end
         end
       end
@@ -1114,7 +1114,7 @@ module AMQ
             auto_delete = bits.bit(3) == 1
             no_wait = bits.bit(4) == 1
             args = Table.from_io(io, format)
-            self.new channel, reserved1, name, passive, durable, exclusive, auto_delete, no_wait, args, bytesize
+            new channel, reserved1, name, passive, durable, exclusive, auto_delete, no_wait, args, bytesize
           end
         end
 
@@ -1145,7 +1145,7 @@ module AMQ
             queue_name = ShortString.from_io(io, format)
             message_count = UInt32.from_io(io, format)
             consumer_count = UInt32.from_io(io, format)
-            self.new channel, queue_name, message_count, consumer_count, bytesize
+            new channel, queue_name, message_count, consumer_count, bytesize
           end
         end
 
@@ -1195,7 +1195,7 @@ module AMQ
             bits = io.read_byte || raise IO::EOFError.new
             no_wait = bits.bit(0) == 1
             args = Table.from_io(io, format)
-            self.new channel, reserved1, queue_name, exchange_name, routing_key, no_wait, args, bytesize
+            new channel, reserved1, queue_name, exchange_name, routing_key, no_wait, args, bytesize
           end
         end
 
@@ -1211,7 +1211,7 @@ module AMQ
           end
 
           def self.from_io(channel, bytesize, io, format)
-            self.new(channel, bytesize)
+            new(channel, bytesize)
           end
         end
 
@@ -1255,7 +1255,7 @@ module AMQ
             if_unused = bits.bit(0) == 1
             if_empty = bits.bit(1) == 1
             no_wait = bits.bit(2) == 1
-            self.new channel, reserved1, name, if_unused, if_empty, no_wait, bytesize
+            new channel, reserved1, name, if_unused, if_empty, no_wait, bytesize
           end
         end
 
@@ -1280,7 +1280,7 @@ module AMQ
 
           def self.from_io(channel, bytesize, io, format)
             message_count = UInt32.from_io(io, format)
-            self.new channel, message_count
+            new channel, message_count
           end
         end
 
@@ -1322,7 +1322,7 @@ module AMQ
             exchange_name = ShortString.from_io(io, format)
             routing_key = ShortString.from_io(io, format)
             args = Table.from_io(io, format)
-            self.new channel, reserved1, queue_name, exchange_name, routing_key, args, bytesize
+            new channel, reserved1, queue_name, exchange_name, routing_key, args, bytesize
           end
         end
 
@@ -1338,7 +1338,7 @@ module AMQ
           end
 
           def self.from_io(channel, bytesize, io, format)
-            self.new(channel)
+            new(channel)
           end
         end
 
@@ -1375,7 +1375,7 @@ module AMQ
             queue_name = ShortString.from_io(io, format)
             bits = io.read_byte || raise IO::EOFError.new
             no_wait = bits.bit(0) == 1
-            self.new channel, reserved1, queue_name, no_wait, bytesize
+            new channel, reserved1, queue_name, no_wait, bytesize
           end
         end
 
@@ -1400,7 +1400,7 @@ module AMQ
 
           def self.from_io(channel, bytesize, io, format)
             message_count = UInt32.from_io(io, format)
-            self.new channel, message_count
+            new channel, message_count
           end
         end
       end
@@ -1447,7 +1447,7 @@ module AMQ
             bits = io.read_byte || raise IO::EOFError.new
             mandatory = bits.bit(0) == 1
             immediate = bits.bit(1) == 1
-            self.new channel, reserved1, exchange, routing_key, mandatory, immediate, bytesize
+            new channel, reserved1, exchange, routing_key, mandatory, immediate, bytesize
           end
         end
 
@@ -1484,7 +1484,7 @@ module AMQ
             redelivered = (io.read_byte || raise IO::EOFError.new) > 0
             exchange = ShortString.from_io(io, format)
             routing_key = ShortString.from_io(io, format)
-            self.new channel, consumer_tag, delivery_tag, redelivered, exchange, routing_key, bytesize
+            new channel, consumer_tag, delivery_tag, redelivered, exchange, routing_key, bytesize
           end
         end
 
@@ -1520,7 +1520,7 @@ module AMQ
             reserved1 = UInt16.from_io(io, format)
             queue = ShortString.from_io(io, format)
             no_ack = (io.read_byte || raise IO::EOFError.new) > 0
-            self.new channel, reserved1, queue, no_ack, bytesize
+            new channel, reserved1, queue, no_ack, bytesize
           end
         end
 
@@ -1557,7 +1557,7 @@ module AMQ
             exchange = ShortString.from_io(io, format)
             routing_key = ShortString.from_io(io, format)
             message_count = UInt32.from_io(io, format)
-            self.new channel, delivery_tag, redelivered, exchange, routing_key, message_count, bytesize
+            new channel, delivery_tag, redelivered, exchange, routing_key, message_count, bytesize
           end
         end
 
@@ -1581,7 +1581,7 @@ module AMQ
 
           def self.from_io(channel, bytesize, io, format)
             reserved1 = ShortString.from_io(io, format)
-            self.new channel, reserved1, bytesize
+            new channel, reserved1, bytesize
           end
         end
 
@@ -1614,7 +1614,7 @@ module AMQ
             io.read_fully(slice)
             delivery_tag = format.decode(UInt64, slice)
             multiple = slice[8] == 1u8
-            self.new channel, delivery_tag, multiple
+            new channel, delivery_tag, multiple
           end
         end
 
@@ -1647,7 +1647,7 @@ module AMQ
             io.read_fully(slice)
             delivery_tag = format.decode(UInt64, slice)
             requeue = slice[8] == 1u8
-            self.new channel, delivery_tag, requeue
+            new channel, delivery_tag, requeue
           end
         end
 
@@ -1681,7 +1681,7 @@ module AMQ
             delivery_tag = format.decode(UInt64, slice)
             multiple = slice[8].bit(0) == 1
             requeue = slice[8].bit(1) == 1
-            self.new channel, delivery_tag, multiple, requeue
+            new channel, delivery_tag, multiple, requeue
           end
         end
 
@@ -1710,7 +1710,7 @@ module AMQ
             prefetch_size = UInt32.from_io(io, format)
             prefetch_count = UInt16.from_io(io, format)
             global = (io.read_byte || raise IO::EOFError.new) > 0
-            self.new channel, prefetch_size, prefetch_count, global
+            new channel, prefetch_size, prefetch_count, global
           end
         end
 
@@ -1726,7 +1726,7 @@ module AMQ
           end
 
           def self.from_io(channel, bytesize, io, format)
-            self.new(channel)
+            new(channel)
           end
         end
 
@@ -1782,7 +1782,7 @@ module AMQ
             exclusive = bits.bit(2) == 1
             no_wait = bits.bit(3) == 1
             args = Table.from_io(io, format)
-            self.new channel, reserved1, queue, consumer_tag, no_local, no_ack, exclusive, no_wait, args, bytesize
+            new channel, reserved1, queue, consumer_tag, no_local, no_ack, exclusive, no_wait, args, bytesize
           end
         end
 
@@ -1808,7 +1808,7 @@ module AMQ
 
           def self.from_io(channel, bytesize, io, format)
             tag = ShortString.from_io(io, format)
-            self.new(channel, tag, bytesize)
+            new(channel, tag, bytesize)
           end
         end
 
@@ -1843,7 +1843,7 @@ module AMQ
             reply_text = ShortString.from_io(io, format)
             exchange = ShortString.from_io(io, format)
             routing_key = ShortString.from_io(io, format)
-            self.new(channel, reply_code, reply_text, exchange, routing_key, bytesize)
+            new(channel, reply_code, reply_text, exchange, routing_key, bytesize)
           end
         end
 
@@ -1871,7 +1871,7 @@ module AMQ
           def self.from_io(channel, bytesize, io, format)
             consumer_tag = ShortString.from_io(io, format)
             no_wait = (io.read_byte || raise IO::EOFError.new) > 0
-            self.new(channel, consumer_tag, no_wait, bytesize)
+            new(channel, consumer_tag, no_wait, bytesize)
           end
         end
 
@@ -1897,7 +1897,7 @@ module AMQ
 
           def self.from_io(channel, bytesize, io, format)
             consumer_tag = ShortString.from_io(io, format)
-            self.new(channel, consumer_tag, bytesize)
+            new(channel, consumer_tag, bytesize)
           end
         end
 
@@ -1922,7 +1922,7 @@ module AMQ
 
           def self.from_io(channel, bytesize, io, format)
             requeue = (io.read_byte || raise IO::EOFError.new) > 0
-            self.new(channel, requeue)
+            new(channel, requeue)
           end
         end
 
@@ -1938,7 +1938,7 @@ module AMQ
           end
 
           def self.from_io(channel, bytesize, io, format)
-            self.new(channel)
+            new(channel)
           end
         end
       end
@@ -1964,7 +1964,7 @@ module AMQ
           end
 
           def self.from_io(channel, bytesize, io, format)
-            self.new channel, (io.read_byte || raise IO::EOFError.new) > 0
+            new channel, (io.read_byte || raise IO::EOFError.new) > 0
           end
 
           def to_io(io, format)
@@ -1986,7 +1986,7 @@ module AMQ
           end
 
           def self.from_io(channel, bytesize, io, format)
-            self.new(channel)
+            new(channel)
           end
         end
       end
@@ -2010,7 +2010,7 @@ module AMQ
           end
 
           def self.from_io(channel, bytesize, io, format)
-            self.new(channel)
+            new(channel)
           end
         end
 
@@ -2026,7 +2026,7 @@ module AMQ
           end
 
           def self.from_io(channel, bytesize, io, format)
-            self.new(channel)
+            new(channel)
           end
         end
 
@@ -2042,7 +2042,7 @@ module AMQ
           end
 
           def self.from_io(channel, bytesize, io, format)
-            self.new(channel)
+            new(channel)
           end
         end
 
@@ -2058,7 +2058,7 @@ module AMQ
           end
 
           def self.from_io(channel, bytesize, io, format)
-            self.new(channel)
+            new(channel)
           end
         end
 
@@ -2074,7 +2074,7 @@ module AMQ
           end
 
           def self.from_io(channel, bytesize, io, format)
-            self.new(channel)
+            new(channel)
           end
         end
 
@@ -2090,7 +2090,7 @@ module AMQ
           end
 
           def self.from_io(channel, bytesize, io, format)
-            self.new(channel)
+            new(channel)
           end
         end
       end
