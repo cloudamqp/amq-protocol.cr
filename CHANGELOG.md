@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.15] - 2025-05-20
+
+### Added
+
+- Table#hash, copy the implemenation from Hash#hash, which produces the same hash regardless of order of keys
+
 ## [1.1.14] - 2024-02-17
 
 ### Added
