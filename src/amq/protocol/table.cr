@@ -8,18 +8,24 @@ module AMQ
     struct Table
       BYTEFORMAT = IO::ByteFormat::NetworkEndian
 
-      def initialize(hash : NamedTuple, @io = IO::Memory.new)
-        hash.each do |key, value|
+      def initialize(tuple : NamedTuple)
+        @io = IO::Memory.new
+        tuple.each do |key, value|
           @io.write_bytes(ShortString.new(key.to_s))
           write_field(value)
         end
       end
 
-      def initialize(hash : Hash(String, Field)?, @io = IO::Memory.new)
+      def initialize(hash : Hash(String, Field))
+        @io = IO::Memory.new
         hash.each do |key, value|
           @io.write_bytes(ShortString.new(key))
           write_field(value)
-        end if hash
+        end
+      end
+
+      def initialize(_nil : Nil)
+        @io = IO::Memory.new(0)
       end
 
       def initialize(@io = IO::Memory.new(0))
