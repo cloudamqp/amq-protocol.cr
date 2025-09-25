@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed Exchange::Bind frame bytesize calculation that incorrectly included extra bytes, which could cause protocol errors when binding exchanges
+
 ## [1.1.15] - 2025-05-20
 
 ### Added
