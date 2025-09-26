@@ -18,16 +18,22 @@ describe AMQ::Protocol::Frame::Method::Basic::Get do
     frame.to_slice.should eq io.to_slice
   end
 
-  it "can encode Exchange::Bind frame with correct bytesize" do
+  it "can calculate Exchange::Bind bytesize correctly" do
     destination = "my_destination"
     source = "my_source"
     routing_key = "my_routing_key"
     arguments = AMQ::Protocol::Table.new
     frame = AMQ::Protocol::Frame::Exchange::Bind.new(1u16, 0u16, destination, source, routing_key, false, arguments)
-    # Method body size: reserved1 + destination + source + routing_key + no_wait + arguments
-    method_body_size = 2 + 1 + destination.bytesize + 1 + source.bytesize + 1 + routing_key.bytesize + 1 + arguments.bytesize
-    # Total frame size includes 4 bytes for class_id + method_id
-    expected_bytesize = method_body_size + 4
-    frame.bytesize.should eq expected_bytesize
+
+    # Serialize to get actual byte length
+    io = IO::Memory.new
+    frame.to_io(io, IO::ByteFormat::NetworkEndian)
+    actual_size = io.size
+
+    # Remove frame wrapper overhead (7 bytes header + 1 byte footer)
+    actual_method_size = actual_size - 8
+
+    # The frame's bytesize should match the actual method size
+    frame.bytesize.should eq actual_method_size
   end
 end
