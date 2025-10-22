@@ -373,9 +373,11 @@ module AMQ
         when 'B' then @io.skip(sizeof(UInt8))
         when 's' then @io.skip(sizeof(Int16))
         when 'u' then @io.skip(sizeof(UInt16))
+        when 'U' then @io.skip(sizeof(Int16)) # Compatibility with AMQP 0-9
         when 'I' then @io.skip(sizeof(Int32))
         when 'i' then @io.skip(sizeof(UInt32))
         when 'l' then @io.skip(sizeof(Int64))
+        when 'L' then @io.skip(sizeof(Int64)) # Compatibility with AMQP 0-9
         when 'f' then @io.skip(sizeof(Float32))
         when 'd' then @io.skip(sizeof(Float64))
         when 'S' then @io.skip(UInt32.from_io(@io, BYTEFORMAT))
@@ -397,9 +399,11 @@ module AMQ
         when 'B' then UInt8.from_io(@io, BYTEFORMAT)
         when 's' then Int16.from_io(@io, BYTEFORMAT)
         when 'u' then UInt16.from_io(@io, BYTEFORMAT)
+        when 'U' then Int16.from_io(@io, BYTEFORMAT) # Compatibility with AMQP 0-9
         when 'I' then Int32.from_io(@io, BYTEFORMAT)
         when 'i' then UInt32.from_io(@io, BYTEFORMAT)
         when 'l' then Int64.from_io(@io, BYTEFORMAT)
+        when 'L' then Int64.from_io(@io, BYTEFORMAT) # Compatibility with AMQP 0-9
         when 'f' then Float32.from_io(@io, BYTEFORMAT)
         when 'd' then Float64.from_io(@io, BYTEFORMAT)
         when 'S' then LongString.from_io(@io, BYTEFORMAT)
