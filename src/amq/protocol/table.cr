@@ -151,7 +151,7 @@ module AMQ
       end
 
       def inspect(io)
-        io << {{@type.name.id.stringify}} << '('
+        io << {{ @type.name.id.stringify }} << '('
         first = true
         @io.rewind
         while @io.pos < @io.bytesize
