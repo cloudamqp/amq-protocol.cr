@@ -11,11 +11,8 @@ module AMQ
       end
 
       def self.from_io(io, format = nil) : String
-        buf = uninitialized UInt8[256]
-        io.read(buf.to_slice[0, 1]) == 1 || raise IO::EOFError.new("Can't read short string")
-        sz = buf[0]
-        io.read_fully(buf.to_slice[0, sz])
-        String.new(buf.to_unsafe, sz)
+        sz = io.read_byte || raise IO::EOFError.new("Can't read short string")
+        io.read_string(sz)
       end
 
       def self.from_bytes(bytes, format = nil) : String
