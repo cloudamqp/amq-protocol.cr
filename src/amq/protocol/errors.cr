@@ -3,6 +3,8 @@ module AMQ
     class Error < Exception
       class FrameDecode < Error; end
 
+      class FrameSizeError < Error; end
+
       class FrameEncode < Error; end
 
       class InvalidFrameEnd < Error; end

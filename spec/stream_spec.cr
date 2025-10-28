@@ -36,7 +36,7 @@ describe AMQ::Protocol::Stream do
     io.rewind
     stream = AMQ::Protocol::Stream.new(io)
 
-    expect_raises(IO::Error, /exceeds max frame size/) do
+    expect_raises(AMQ::Protocol::Error::FrameSizeError, /exceeds max frame size/) do
       stream.next_frame
     end
   end
@@ -69,7 +69,7 @@ describe AMQ::Protocol::Stream do
     io.rewind
     stream = AMQ::Protocol::Stream.new(io)
 
-    expect_raises(IO::Error, /Cannot allocate|frame size limit/) do
+    expect_raises(AMQ::Protocol::Error::FrameSizeError, /Cannot allocate|frame size limit/) do
       stream.next_frame
     end
   end
@@ -102,7 +102,7 @@ describe AMQ::Protocol::Stream do
     io.rewind
     stream = AMQ::Protocol::Stream.new(io)
 
-    expect_raises(IO::Error, /Cannot allocate|frame size limit/) do
+    expect_raises(AMQ::Protocol::Error::FrameSizeError, /Cannot allocate|frame size limit/) do
       stream.next_frame { }
     end
   end
