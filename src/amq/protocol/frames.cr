@@ -35,7 +35,7 @@ module AMQ
           when Method::TYPE    then Method.from_io(channel, size, io, format)
           when Header::TYPE    then Header.from_io(channel, size, io, format)
           when Body::TYPE      then Body.new(channel, size, io)
-          when Heartbeat::TYPE then Heartbeat.new
+          when Heartbeat::TYPE then Heartbeat.from_io(channel, size, io, format)
           else
             raise Error::FrameDecode.new("Invalid frame type #{type}")
           end
@@ -74,7 +74,7 @@ module AMQ
             bytes = Bytes.new(size)
             io.read_fully bytes
             BytesBody.new(channel, size, bytes)
-          when Heartbeat::TYPE then Heartbeat.new
+          when Heartbeat::TYPE then Heartbeat.from_io(channel, size, io, format)
           else
             raise Error::FrameDecode.new("Invalid frame type #{type}")
           end
@@ -203,6 +203,16 @@ module AMQ
 
         def to_io(io, format)
           wrap(io, format) { }
+        end
+
+        def self.from_io(channel, size, io, format)
+          unless channel.zero?
+            raise Protocol::Error::FrameDecode.new("Heartbeat frame channel must be 0, got #{channel}")
+          end
+          unless size.zero?
+            raise Protocol::Error::FrameDecode.new("Heartbeat frame size must be 0, got #{size}")
+          end
+          new
         end
       end
 

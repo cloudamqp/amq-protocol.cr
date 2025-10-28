@@ -37,3 +37,38 @@ describe AMQ::Protocol::Frame::Method::Basic::Get do
     frame.bytesize.should eq actual_method_size
   end
 end
+
+describe AMQ::Protocol::Frame::Heartbeat do
+  it "rejects heartbeat frames with non-zero size" do
+    io = IO::Memory.new
+    format = IO::ByteFormat::NetworkEndian
+
+    # Manually construct a malformed heartbeat with non-zero size
+    io.write_byte(8_u8)             # Heartbeat frame type
+    io.write_bytes(0_u16, format)   # Channel 0
+    io.write_bytes(100_u32, format) # Size 100 (invalid for heartbeat!)
+    io.write(("x" * 100).to_slice)  # Some content
+    io.write_byte(206_u8)           # Frame end marker
+    io.rewind
+
+    expect_raises(AMQ::Protocol::Error::FrameDecode, /Heartbeat frame size must be 0, got 100/) do
+      AMQ::Protocol::Frame.from_io(io)
+    end
+  end
+
+  it "rejects heartbeat frames with non-zero channel" do
+    io = IO::Memory.new
+    format = IO::ByteFormat::NetworkEndian
+
+    # Manually construct a malformed heartbeat with non-zero channel
+    io.write_byte(8_u8)           # Heartbeat frame type
+    io.write_bytes(5_u16, format) # Channel 5 (invalid for heartbeat!)
+    io.write_bytes(0_u32, format) # Size 0
+    io.write_byte(206_u8)         # Frame end marker
+    io.rewind
+
+    expect_raises(AMQ::Protocol::Error::FrameDecode, /Heartbeat frame channel must be 0, got 5/) do
+      AMQ::Protocol::Frame.from_io(io)
+    end
+  end
+end
