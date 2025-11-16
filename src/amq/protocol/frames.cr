@@ -673,7 +673,7 @@ module AMQ
             METHOD_ID
           end
 
-          getter reason
+          getter secret, reason
 
           def initialize(@secret : String, @reason : String, bytesize = nil)
             if bytesize.nil?
