@@ -28,6 +28,14 @@ module AMQ
           super("Frame type #{frame.type} not implemented")
         end
       end
+
+      class TooLargeFrameError < IO::Error
+        getter frame_size, frame_size_max
+
+        def initialize(@frame_size : UInt32, @frame_size_max : UInt32)
+          super("Frame size #{@frame_size} exceeds max frame size #{@frame_size_max}")
+        end
+      end
     end
   end
 end
