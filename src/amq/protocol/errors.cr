@@ -29,7 +29,7 @@ module AMQ
         end
       end
 
-      class TooLargeFrameError < IO::Error
+      class TooLargeFrame < IO::Error
         getter frame_size, frame_size_max
 
         def initialize(@frame_size : UInt32, @frame_size_max : UInt32)

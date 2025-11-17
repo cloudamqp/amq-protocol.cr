@@ -102,7 +102,7 @@ module AMQ
         channel = @format.decode(UInt16, slice[1, 2])
         size = @format.decode(UInt32, slice[3, 4])
         if size > @frame_max
-          raise Protocol::Error::TooLargeFrameError.new(size, @frame_max)
+          raise Protocol::Error::TooLargeFrame.new(size, @frame_max)
           # Doesn't take into account the frame overhead (8 bytes)
         end
         @frame_size = size
