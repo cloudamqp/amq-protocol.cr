@@ -425,6 +425,10 @@ module AMQ
 
       private def read_array(table_to_h = false)
         size = UInt32.from_io(@io, BYTEFORMAT)
+        # Check size limit before allocation if IO supports it
+        if stream = @io.as?(AMQ::Protocol::Stream)
+          stream.assert_within_frame(size)
+        end
         end_pos = @io.pos + size
         a = Array(Field).new
         while @io.pos < end_pos
@@ -435,6 +439,10 @@ module AMQ
 
       private def read_slice
         size = UInt32.from_io(@io, BYTEFORMAT)
+        # Check size limit before allocation if IO supports it
+        if stream = @io.as?(AMQ::Protocol::Stream)
+          stream.assert_within_frame(size)
+        end
         bytes = Bytes.new(size)
         @io.read_fully bytes
         bytes

@@ -23,6 +23,7 @@ module AMQ
       # Parse a frame from an IO
       #
       # Requires a block, because the Body is not buffered and can instead be streamed efficiently.
+      @[Deprecated("Use Stream#next_frame that limits frame size instead")]
       def self.from_io(io, format = IO::ByteFormat::NetworkEndian, & : Frame -> _)
         buf = uninitialized UInt8[7]
         slice = buf.to_slice
@@ -59,6 +60,7 @@ module AMQ
       #
       # Note that this method buffers `BytesBody` frames,
       # only use this method if you don't require the best performance.
+      @[Deprecated("Use Stream#next_frame that limits frame size instead")]
       def self.from_io(io, format = IO::ByteFormat::NetworkEndian)
         buf = uninitialized UInt8[7]
         slice = buf.to_slice
@@ -71,6 +73,9 @@ module AMQ
           when Method::TYPE then Method.from_io(channel, size, io, format)
           when Header::TYPE then Header.from_io(channel, size, io, format)
           when Body::TYPE
+            if stream = io.as? Stream
+              stream.assert_within_frame(size)
+            end
             bytes = Bytes.new(size)
             io.read_fully bytes
             BytesBody.new(channel, size, bytes)
