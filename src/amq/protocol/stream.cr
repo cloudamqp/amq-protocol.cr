@@ -61,7 +61,13 @@ module AMQ
 
         begin
           yield frame
-        ensure
+        rescue ex
+          # skip the rest of the frame if not fully read
+          # ignore IO::Error and raise the original exception
+          @io.skip(@frame_remaining + 1) rescue nil
+          raise ex
+        else
+          # Verifies that the frame was fully read, might raise
           read_frame_end
         end
       end
