@@ -119,9 +119,10 @@ module AMQ
         else
           raise IO::EOFError.new("Unexpected EOF while reading frame-end")
         end
-        if @frame_remaining != 0
-          raise Protocol::Error::FrameSizeError.new("Frame not fully read, #{@frame_remaining} bytes remaining")
-        end
+        # Could ensure the frame was fully read, but might cause issues with some implementations
+        # if @frame_remaining != 0
+        # raise Protocol::Error::InvalidFrameEnd.new("Frame not fully read, #{@frame_remaining} bytes remaining")
+        # end
       end
     end
   end
