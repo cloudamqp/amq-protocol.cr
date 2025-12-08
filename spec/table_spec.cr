@@ -226,9 +226,9 @@ describe AMQ::Protocol::Table do
       t1 = AMQ::Protocol::Table.new({c: 1, b: 2, a: 3})
       i = 0
       expected = {"c", "b", "a"}
-      t1.each do |k, v|
-        k.should eq expected[i]
-        v.should eq(i += 1)
+      t1.each do |key, value|
+        key.should eq expected[i]
+        value.should eq(i += 1)
       end
     end
 
@@ -252,15 +252,15 @@ describe AMQ::Protocol::Table do
 
     it "should return false when block return false for all invocations" do
       t1 = AMQ::Protocol::Table.new({"a": 1, "b": 2, "c": 3})
-      t1.any? { |k, v| v == 4 }.should be_false
+      t1.any? { |_, value| value == 4 }.should be_false
     end
 
     it "should return true and stop iteration if block returns true" do
       t1 = AMQ::Protocol::Table.new({"a": 1, "b": 2, "c": 3, "d": 4})
       i = 0
-      t1.any? do |k, v|
+      t1.any? do |_, value|
         i += 1
-        v == 3
+        value == 3
       end.should be_true
       i.should eq 3
     end
@@ -274,15 +274,15 @@ describe AMQ::Protocol::Table do
 
     it "should return true when block return true for all invocations" do
       t1 = AMQ::Protocol::Table.new({"a": 1, "b": 2, "c": 3})
-      t1.all? { |k, v| v.as(Int32) < 100 }.should be_true
+      t1.all? { |_, value| value.as(Int32) < 100 }.should be_true
     end
 
     it "should return false and stop iteration if block returns true" do
       t1 = AMQ::Protocol::Table.new({"a": 1, "b": 2, "c": 3, "d": 4})
       i = 0
-      t1.all? do |k, v|
+      t1.all? do |_, value|
         i += 1
-        v.as(Int32) < 3
+        value.as(Int32) < 3
       end.should be_false
       i.should eq 3
     end
