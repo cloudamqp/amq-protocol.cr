@@ -215,6 +215,23 @@ describe AMQ::Protocol::Table do
   end
 
   describe "#each" do
+    it "should not call block if empty" do
+      t1 = AMQ::Protocol::Table.new
+      called = false
+      t1.each { called = true }
+      called.should be_false
+    end
+
+    it "should iterate keys in the order they are added" do
+      t1 = AMQ::Protocol::Table.new({c: 1, b: 2, a: 3})
+      i = 0
+      expected = {"c", "b", "a"}
+      t1.each do |k, v|
+        k.should eq expected[i]
+        v.should eq(i += 1)
+      end
+    end
+
     it "can be nested" do
       t1 = AMQ::Protocol::Table.new({a: 1, b: 2, c: 3})
       i = 0
