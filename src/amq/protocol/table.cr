@@ -50,9 +50,8 @@ module AMQ
       end
 
       def fetch(key : String, &)
-        @io.rewind
-        while @io.pos < @io.bytesize
-          if key == ShortString.from_io(@io)
+        with_io_loop do |io|
+          if key == ShortString.from_io(io)
             return read_field
           else
             skip_field
@@ -62,9 +61,8 @@ module AMQ
       end
 
       def has_key?(key : String) : Bool
-        @io.rewind
-        while @io.pos < @io.bytesize
-          if key == ShortString.from_io(@io)
+        with_io_loop do |io|
+          if key == ShortString.from_io(io)
             return true
           else
             skip_field
@@ -79,19 +77,17 @@ module AMQ
       end
 
       def each(& : (String, Field) -> Nil)
-        @io.rewind
-        while @io.pos < @io.bytesize
-          k = ShortString.from_io(@io)
+        with_io_loop do |io|
+          k = ShortString.from_io(io)
           v = read_field
           yield k, v
         end
       end
 
       def size
-        @io.rewind
         i = 0
-        while @io.pos < @io.bytesize
-          ShortString.skip(@io)
+        with_io_loop do |io|
+          ShortString.skip(io)
           skip_field
           i += 1
         end
@@ -99,20 +95,14 @@ module AMQ
       end
 
       def any?(& : (String, Field) -> _) : Bool
-        @io.rewind
-        while @io.pos < @io.bytesize
-          k = ShortString.from_io(@io)
-          v = read_field
+        each do |k, v|
           return true if yield(k, v)
         end
         false
       end
 
       def all?(& : String, Field -> _) : Bool
-        @io.rewind
-        while @io.pos < @io.bytesize
-          k = ShortString.from_io(@io)
-          v = read_field
+        each do |k, v|
           return false unless yield(k, v)
         end
         true
@@ -130,10 +120,9 @@ module AMQ
       end
 
       def to_h
-        @io.rewind
         h = Hash(String, Field).new
-        while @io.pos < @io.bytesize
-          k = ShortString.from_io(@io)
+        with_io_loop do |io|
+          k = ShortString.from_io(io)
           h[k] = read_field(table_to_h: true)
         end
         h
@@ -141,11 +130,8 @@ module AMQ
 
       def to_json(json : JSON::Builder)
         json.object do
-          @io.rewind
-          while @io.pos < @io.bytesize
-            key = ShortString.from_io(@io)
-            value = read_field
-            json.field key, value
+          each do |k, v|
+            json.field k, v
           end
         end
       end
@@ -153,12 +139,11 @@ module AMQ
       def inspect(io)
         io << {{ @type.name.id.stringify }} << '('
         first = true
-        @io.rewind
-        while @io.pos < @io.bytesize
+        each do |k, v|
           io << ", " unless first
-          io << '@' << ShortString.from_io(@io)
+          io << '@' << k
           io << '='
-          read_field.inspect(io)
+          v.inspect(io)
           first = false
         end
         io << ')'
@@ -276,6 +261,18 @@ module AMQ
           write_field(value)
         end
         self
+      end
+
+      private def with_io_loop(&)
+        pos = @io.pos
+        @io.rewind
+        while @io.pos < @io.bytesize
+          yield @io
+        end
+      ensure
+        if p = pos
+          @io.pos = {p, @io.bytesize}.min
+        end
       end
 
       private def ensure_writeable
