@@ -242,6 +242,15 @@ describe AMQ::Protocol::Table do
       end
       i.should eq 9
     end
+
+    it "should raise initial position is larger than bytesize after iteration" do
+      t1 = AMQ::Protocol::Table.new({a: 1, b: 2, c: 3})
+      expect_raises(AMQ::Protocol::Error, %r{modified}) do
+        t1.each do
+          t1.delete "b"
+        end
+      end
+    end
   end
 
   describe "#any?(&)" do

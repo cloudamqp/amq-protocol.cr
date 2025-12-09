@@ -271,7 +271,12 @@ module AMQ
         end
       ensure
         if p = pos
-          @io.pos = {p, @io.bytesize}.min
+          if p > @io.bytesize
+            err = "Initial position larger than bytesize. Has the Table been " \
+                  " modified during iteration?"
+            raise AMQ::Protocol::Error.new err
+          end
+          @io.pos = p
         end
       end
 
