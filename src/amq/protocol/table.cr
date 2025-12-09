@@ -168,7 +168,9 @@ module AMQ
       def ==(other : self)
         return false if size != other.size
         each do |k, v|
-          return false if other.fetch(k, nil) != v
+          return false if other[k] != v
+        rescue KeyError # If key doesnt exist in other
+          return false
         end
         true
       end

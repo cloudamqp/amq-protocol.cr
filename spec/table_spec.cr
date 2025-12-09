@@ -170,6 +170,49 @@ describe AMQ::Protocol::Table do
     t2 = AMQ::Protocol::Table.new({b: "foo", a: 1})
     t1.hash.should eq t2.hash
   end
+
+  describe "#==" do
+    it "should return true if both are empty" do
+      t1 = AMQ::Protocol::Table.new
+      t2 = AMQ::Protocol::Table.new
+      (t1 == t2).should be_true
+    end
+
+    it "should return true if both have same elements in same order" do
+      t1 = AMQ::Protocol::Table.new({a: 1, b: "two", c: 3.0})
+      t2 = AMQ::Protocol::Table.new({a: 1, b: "two", c: 3.0})
+      (t1 == t2).should be_true
+      (t2 == t1).should be_true
+    end
+
+    it "should return true if both have same elements in different order" do
+      t1 = AMQ::Protocol::Table.new({a: 1, b: "two", c: 3.0})
+      t2 = AMQ::Protocol::Table.new({c: 3.0, b: "two", a: 1})
+      (t1 == t2).should be_true
+      (t2 == t1).should be_true
+    end
+
+    it "should return false if one is empty" do
+      t1 = AMQ::Protocol::Table.new({a: 1, b: 2, c: 3})
+      t2 = AMQ::Protocol::Table.new
+      (t1 == t2).should be_false
+      (t2 == t1).should be_false
+    end
+
+    it "should return false when both have same keys but different values" do
+      t1 = AMQ::Protocol::Table.new({a: 1, b: 2, c: 3})
+      t2 = AMQ::Protocol::Table.new({a: "one", b: "two", c: "three"})
+      (t1 == t2).should be_false
+      (t2 == t1).should be_false
+    end
+
+    it "should return false if self value is nil and missing in other" do
+      t1 = AMQ::Protocol::Table.new({a: nil})
+      t2 = AMQ::Protocol::Table.new({b: "hi"})
+      (t1 == t2).should be_false
+      (t2 == t1).should be_false
+    end
+  end
 end
 
 # Verifies bugfix for Sub-table memory corruption
