@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Fixed bug in `Table#==` that made `Table.new({a: nil}) == Table.new({b: "foo"})`
 
+### Added
+- `Table#each` supports nesting. Before the inner `#each` would interfer with the outer.
+
 ## [1.1.20] - 2025-11-22
 
 ### Fixed
