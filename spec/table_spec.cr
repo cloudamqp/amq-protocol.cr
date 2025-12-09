@@ -101,11 +101,23 @@ describe AMQ::Protocol::Table do
     t2.should_not eq t1
   end
 
-  it "can be json serialized" do
-    data = {a: 1, b: "string", c: 0.2, d: [1, 2], e: nil}
-    t1 = AMQ::Protocol::Table.new(data)
-    json = t1.to_json
-    json.should eq data.to_json
+  describe "#to_json" do
+    it "can be json serialized" do
+      data = {
+        a: 1,
+        b: "string",
+        c: 0.2,
+        d: [1, 2],
+        e: nil,
+        f: "foo".to_slice,
+      }
+      expected = data.merge({
+        f: Base64.encode("foo".to_slice),
+      })
+      t1 = AMQ::Protocol::Table.new(data)
+      json = t1.to_json
+      json.should eq expected.to_json
+    end
   end
 
   it "can be empty" do

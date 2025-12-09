@@ -1,3 +1,5 @@
+require "json/builder"
+require "base64"
 require "./field"
 require "./short_string"
 require "./long_string"
@@ -130,10 +132,24 @@ module AMQ
 
       def to_json(json : JSON::Builder)
         json.object do
-          each do |k, v|
-            json.field k, v
+          @io.rewind
+          while @io.pos < @io.bytesize
+            key = ShortString.from_io(@io)
+            value = read_field
+            json.field key do
+              value_to_json(value, json)
+            end
           end
         end
+      end
+
+      # Slice needs special treatment
+      private def value_to_json(slice : Slice, json : JSON::Builder)
+        Base64.encode(slice).to_json(json)
+      end
+
+      private def value_to_json(obj, json : JSON::Builder)
+        obj.to_json(json)
       end
 
       def inspect(io)
@@ -460,9 +476,6 @@ class IO::Memory
     @bytesize = value
   end
 end
-
-require "json/builder"
-require "base64"
 
 struct Slice
   # Encodes the slice as a base64 encoded string
