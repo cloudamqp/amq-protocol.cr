@@ -6,7 +6,7 @@ describe AMQ::Protocol::Frame::Method::Basic::Get do
     f_out = AMQ::Protocol::Frame::Method::Basic::Get.new(1_u16, 0_u16, "myqueue", true)
     f_out.to_io(io, IO::ByteFormat::NetworkEndian)
     io.rewind
-    AMQ::Protocol::Frame.from_io(io, IO::ByteFormat::NetworkEndian) do |f_in|
+    AMQ::Protocol::Stream.new(io).next_frame do |f_in|
       f_out.should eq f_in
     end
   end
@@ -52,7 +52,7 @@ describe AMQ::Protocol::Frame::Heartbeat do
     io.rewind
 
     expect_raises(AMQ::Protocol::Error::FrameDecode, /Heartbeat frame size must be 0, got 100/) do
-      AMQ::Protocol::Frame.from_io(io)
+      AMQ::Protocol::Stream.new(io).next_frame
     end
   end
 
@@ -68,7 +68,7 @@ describe AMQ::Protocol::Frame::Heartbeat do
     io.rewind
 
     expect_raises(AMQ::Protocol::Error::FrameDecode, /Heartbeat frame channel must be 0, got 5/) do
-      AMQ::Protocol::Frame.from_io(io)
+      AMQ::Protocol::Stream.new(io).next_frame
     end
   end
 end
