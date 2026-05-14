@@ -300,6 +300,38 @@ describe AMQ::Protocol::Table do
     end
   end
 
+  it "can be iterated concurrently from fibers across threads" do
+    hash = Hash(String, AMQ::Protocol::Field).new
+    50.times { |i| hash["key#{i}"] = "value#{i}" }
+    t1 = AMQ::Protocol::Table.new(hash)
+    t2 = AMQ::Protocol::Table.new(hash)
+
+    consumers = Fiber::ExecutionContext::Parallel.new("consumers", 8)
+    fiber_count = 16
+    iterations = 200
+    done = Channel(Exception?).new(fiber_count)
+
+    fiber_count.times do
+      consumers.spawn do
+        err : Exception? = nil
+        begin
+          iterations.times do
+            (t1 == t2).should be_true
+          end
+        rescue ex
+          err = ex
+        end
+        done.send(err)
+      end
+    end
+
+    fiber_count.times do
+      if ex = done.receive
+        raise ex
+      end
+    end
+  end
+
   # Verifies bugfix for Sub-table memory corruption
   # https://github.com/cloudamqp/amq-protocol.cr/pull/14
   describe "should not overwrite sub-tables memory when reassigning values in a Table" do
