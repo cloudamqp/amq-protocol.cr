@@ -1,3 +1,5 @@
+require "json/builder"
+require "base64"
 require "./field"
 require "./errors"
 
@@ -153,20 +155,31 @@ module AMQ
           while @pos < @bytesize
             key = read_short_string
             value = read_field
-            json.field key, value
+            json.field key do
+              value_to_json(value, json)
+            end
           end
         end
       end
 
+      # Slice needs special treatment
+      private def value_to_json(slice : Slice, json : JSON::Builder)
+        Base64.encode(slice).to_json(json)
+      end
+
+      private def value_to_json(obj, json : JSON::Builder)
+        obj.to_json(json)
+      end
+
       def inspect(io)
-        io << {{@type.name.id.stringify}} << '('
+        io << {{ @type.name.id.stringify }} << '('
         first = true
         @pos = 0
         while @pos < @bytesize
           io << ", " unless first
           io << '@' << read_short_string
           io << '='
-          read_field.inspect(io)
+          v.inspect(io)
           first = false
         end
         io << ')'
@@ -176,7 +189,9 @@ module AMQ
       def ==(other : self)
         return false if size != other.size
         each do |k, v|
-          return false if other.fetch(k, nil) != v
+          return false if other[k] != v
+        rescue KeyError # If key doesnt exist in other
+          return false
         end
         true
       end

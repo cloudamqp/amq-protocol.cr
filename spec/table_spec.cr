@@ -101,11 +101,23 @@ describe AMQ::Protocol::Table do
     t2.should_not eq t1
   end
 
-  it "can be json serialized" do
-    data = {a: 1, b: "string", c: 0.2, d: [1, 2], e: nil}
-    t1 = AMQ::Protocol::Table.new(data)
-    json = t1.to_json
-    json.should eq data.to_json
+  describe "#to_json" do
+    it "can be json serialized" do
+      data = {
+        a: 1,
+        b: "string",
+        c: 0.2,
+        d: [1, 2],
+        e: nil,
+        f: "foo".to_slice,
+      }
+      expected = data.merge({
+        f: Base64.encode("foo".to_slice),
+      })
+      t1 = AMQ::Protocol::Table.new(data)
+      json = t1.to_json
+      json.should eq expected.to_json
+    end
   end
 
   it "can be empty" do
@@ -170,41 +182,158 @@ describe AMQ::Protocol::Table do
     t2 = AMQ::Protocol::Table.new({b: "foo", a: 1})
     t1.hash.should eq t2.hash
   end
-end
 
-# Verifies bugfix for Sub-table memory corruption
-# https://github.com/cloudamqp/amq-protocol.cr/pull/14
-describe "should not overwrite sub-tables memory when reassigning values in a Table" do
-  it "when reassigning a Table" do
-    parent_table = AMQ::Protocol::Table.new
-    child_table = AMQ::Protocol::Table.new({"a": "b"})
-    parent_table["table"] = child_table
+  describe "#==" do
+    it "should return true if both are empty" do
+      t1 = AMQ::Protocol::Table.new
+      t2 = AMQ::Protocol::Table.new
+      (t1 == t2).should be_true
+    end
 
-    # Read child_table from io
-    table_from_io = parent_table["table"].as(AMQ::Protocol::Table)
+    it "should return true if both have same elements in same order" do
+      t1 = AMQ::Protocol::Table.new({a: 1, b: "two", c: 3.0})
+      t2 = AMQ::Protocol::Table.new({a: 1, b: "two", c: 3.0})
+      (t1 == t2).should be_true
+      (t2 == t1).should be_true
+    end
 
-    # Overwrite child_table data in parent_table
-    parent_table["table"] = "foo"
+    it "should return true if both have same elements in different order" do
+      t1 = AMQ::Protocol::Table.new({a: 1, b: "two", c: 3.0})
+      t2 = AMQ::Protocol::Table.new({c: 3.0, b: "two", a: 1})
+      (t1 == t2).should be_true
+      (t2 == t1).should be_true
+    end
 
-    # Verify that read_table wasn't modified by reassignment of "table"
-    table_from_io.should eq child_table
+    it "should return false if one is empty" do
+      t1 = AMQ::Protocol::Table.new({a: 1, b: 2, c: 3})
+      t2 = AMQ::Protocol::Table.new
+      (t1 == t2).should be_false
+      (t2 == t1).should be_false
+    end
+
+    it "should return false when both have same keys but different values" do
+      t1 = AMQ::Protocol::Table.new({a: 1, b: 2, c: 3})
+      t2 = AMQ::Protocol::Table.new({a: "one", b: "two", c: "three"})
+      (t1 == t2).should be_false
+      (t2 == t1).should be_false
+    end
+
+    it "should return false if self value is nil and missing in other" do
+      t1 = AMQ::Protocol::Table.new({a: nil})
+      t2 = AMQ::Protocol::Table.new({b: "hi"})
+      (t1 == t2).should be_false
+      (t2 == t1).should be_false
+    end
   end
 
-  it "when reassigning a string" do
-    parent_table = AMQ::Protocol::Table.new
-    child_table = AMQ::Protocol::Table.new({"abc": "123"})
+  describe "#each" do
+    it "should not call block if empty" do
+      t1 = AMQ::Protocol::Table.new
+      called = false
+      t1.each { called = true }
+      called.should be_false
+    end
 
-    parent_table["foo"] = "bar"
-    parent_table["tbl"] = child_table
+    it "should iterate keys in the order they are added" do
+      t1 = AMQ::Protocol::Table.new({c: 1, b: 2, a: 3})
+      i = 0
+      expected = {"c", "b", "a"}
+      t1.each do |key, value|
+        key.should eq expected[i]
+        value.should eq(i += 1)
+      end
+    end
 
-    # Read child_table from io
-    read_table = parent_table["tbl"].as(AMQ::Protocol::Table)
+    it "can be nested" do
+      t1 = AMQ::Protocol::Table.new({a: 1, b: 2, c: 3})
+      i = 0
+      t1.each do
+        t1.each do
+          i += 1
+        end
+      end
+      i.should eq 9
+    end
+  end
 
-    # Overwrite string "foo" in parent_table
-    parent_table["foo"] = "foooo"
+  describe "#any?(&)" do
+    it "should return false when empty" do
+      t1 = AMQ::Protocol::Table.new
+      t1.any? { }.should be_false
+    end
 
-    # Verify that read_table wasn't modified by reassignment of "foo"
-    read_table.should eq child_table
+    it "should return false when block return false for all invocations" do
+      t1 = AMQ::Protocol::Table.new({"a": 1, "b": 2, "c": 3})
+      t1.any? { |_, value| value == 4 }.should be_false
+    end
+
+    it "should return true and stop iteration if block returns true" do
+      t1 = AMQ::Protocol::Table.new({"a": 1, "b": 2, "c": 3, "d": 4})
+      i = 0
+      t1.any? do |_, value|
+        i += 1
+        value == 3
+      end.should be_true
+      i.should eq 3
+    end
+  end
+
+  describe "#all?(&)" do
+    it "should return true when empty" do
+      t1 = AMQ::Protocol::Table.new
+      t1.all? { }.should be_true
+    end
+
+    it "should return true when block return true for all invocations" do
+      t1 = AMQ::Protocol::Table.new({"a": 1, "b": 2, "c": 3})
+      t1.all? { |_, value| value.as(Int32) < 100 }.should be_true
+    end
+
+    it "should return false and stop iteration if block returns true" do
+      t1 = AMQ::Protocol::Table.new({"a": 1, "b": 2, "c": 3, "d": 4})
+      i = 0
+      t1.all? do |_, value|
+        i += 1
+        value.as(Int32) < 3
+      end.should be_false
+      i.should eq 3
+    end
+  end
+
+  # Verifies bugfix for Sub-table memory corruption
+  # https://github.com/cloudamqp/amq-protocol.cr/pull/14
+  describe "should not overwrite sub-tables memory when reassigning values in a Table" do
+    it "when reassigning a Table" do
+      parent_table = AMQ::Protocol::Table.new
+      child_table = AMQ::Protocol::Table.new({"a": "b"})
+      parent_table["table"] = child_table
+
+      # Read child_table from io
+      table_from_io = parent_table["table"].as(AMQ::Protocol::Table)
+
+      # Overwrite child_table data in parent_table
+      parent_table["table"] = "foo"
+
+      # Verify that read_table wasn't modified by reassignment of "table"
+      table_from_io.should eq child_table
+    end
+
+    it "when reassigning a string" do
+      parent_table = AMQ::Protocol::Table.new
+      child_table = AMQ::Protocol::Table.new({"abc": "123"})
+
+      parent_table["foo"] = "bar"
+      parent_table["tbl"] = child_table
+
+      # Read child_table from io
+      read_table = parent_table["tbl"].as(AMQ::Protocol::Table)
+
+      # Overwrite string "foo" in parent_table
+      parent_table["foo"] = "foooo"
+
+      # Verify that read_table wasn't modified by reassignment of "foo"
+      read_table.should eq child_table
+    end
   end
 
   it "can add fields" do

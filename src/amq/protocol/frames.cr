@@ -23,6 +23,7 @@ module AMQ
       # Parse a frame from an IO
       #
       # Requires a block, because the Body is not buffered and can instead be streamed efficiently.
+      @[Deprecated("Use Stream#next_frame that limits frame size instead")]
       def self.from_io(io, format = IO::ByteFormat::NetworkEndian, & : Frame -> _)
         buf = uninitialized UInt8[7]
         slice = buf.to_slice
@@ -35,7 +36,7 @@ module AMQ
           when Method::TYPE    then Method.from_io(channel, size, io, format)
           when Header::TYPE    then Header.from_io(channel, size, io, format)
           when Body::TYPE      then Body.new(channel, size, io)
-          when Heartbeat::TYPE then Heartbeat.new
+          when Heartbeat::TYPE then Heartbeat.from_io(channel, size, io, format)
           else
             raise Error::FrameDecode.new("Invalid frame type #{type}")
           end
@@ -59,6 +60,7 @@ module AMQ
       #
       # Note that this method buffers `BytesBody` frames,
       # only use this method if you don't require the best performance.
+      @[Deprecated("Use Stream#next_frame that limits frame size instead")]
       def self.from_io(io, format = IO::ByteFormat::NetworkEndian)
         buf = uninitialized UInt8[7]
         slice = buf.to_slice
@@ -71,10 +73,13 @@ module AMQ
           when Method::TYPE then Method.from_io(channel, size, io, format)
           when Header::TYPE then Header.from_io(channel, size, io, format)
           when Body::TYPE
+            if stream = io.as? Stream
+              stream.assert_within_frame(size)
+            end
             bytes = Bytes.new(size)
             io.read_fully bytes
             BytesBody.new(channel, size, bytes)
-          when Heartbeat::TYPE then Heartbeat.new
+          when Heartbeat::TYPE then Heartbeat.from_io(channel, size, io, format)
           else
             raise Error::FrameDecode.new("Invalid frame type #{type}")
           end
@@ -91,6 +96,16 @@ module AMQ
         io.to_slice
       end
 
+      # Helper method to calculate ShortString size (1 byte length + content)
+      private def short_string_size(str : String) : UInt32
+        sizeof(UInt8).to_u32 + str.bytesize
+      end
+
+      # Helper method to calculate LongString size (4 bytes length + content)
+      private def long_string_size(str : String) : UInt32
+        sizeof(UInt32).to_u32 + str.bytesize
+      end
+
       struct Header < Frame
         TYPE = 2_u8
 
@@ -102,7 +117,12 @@ module AMQ
 
         def initialize(channel : UInt16, @class_id : UInt16, @weight : UInt16, @body_size : UInt64,
                        @properties : Properties, bytesize : UInt32? = nil)
-          bytesize ||= sizeof(UInt16) + sizeof(UInt16) + sizeof(UInt64) + @properties.bytesize
+          if bytesize.nil?
+            bytesize = sizeof(UInt16) +            # class_id (2 bytes)
+                       sizeof(UInt16) +            # weight (2 bytes)
+                       sizeof(UInt64) +            # body_size (8 bytes)
+                       @properties.bytesize.to_u32 # properties
+          end
           super(channel, bytesize.to_u32)
         end
 
@@ -189,6 +209,16 @@ module AMQ
         def to_io(io, format)
           wrap(io, format) { }
         end
+
+        def self.from_io(channel, size, io, format)
+          unless channel.zero?
+            raise Protocol::Error::FrameDecode.new("Heartbeat frame channel must be 0, got #{channel}")
+          end
+          unless size.zero?
+            raise Protocol::Error::FrameDecode.new("Heartbeat frame size must be 0, got #{size}")
+          end
+          new
+        end
       end
 
       alias MessageFrame = Body | Header | Method::Basic::Publish
@@ -201,7 +231,8 @@ module AMQ
         end
 
         def initialize(channel : UInt16, bytesize : UInt32 = 0_u32)
-          super(channel, bytesize + 2 * sizeof(UInt16))
+          # Method frames have a 2-byte class_id and 2-byte method_id
+          super(channel, bytesize + sizeof(UInt16) + sizeof(UInt16))
         end
 
         abstract def class_id : UInt16
@@ -225,7 +256,7 @@ module AMQ
           io.read_fully(slice)
           class_id = format.decode(UInt16, slice[0, 2])
           method_id = format.decode(UInt16, slice[2, 2])
-          bytesize -= 4
+          bytesize -= (sizeof(UInt16) + sizeof(UInt16)) # (class_id + method_id)
           case class_id
           when 10_u16
             case method_id
@@ -367,8 +398,13 @@ module AMQ
                          @mechanisms = "AMQPLAIN PLAIN",
                          @locales = "en_US",
                          bytesize : UInt32? = nil)
-            bytesize ||= 1 + 1 + @server_properties.bytesize + 4 +
-                         @mechanisms.bytesize + 4 + @locales.bytesize
+            if bytesize.nil?
+              bytesize = sizeof(UInt8) +                      # version_major (1 byte)
+                         sizeof(UInt8) +                      # version_minor (1 byte)
+                         @server_properties.bytesize.to_u32 + # server_properties Table
+                         long_string_size(@mechanisms) +      # mechanisms LongString (4 + length)
+                         long_string_size(@locales)           # locales LongString (4 + length)
+            end
             super(bytesize.to_u32)
           end
 
@@ -393,8 +429,12 @@ module AMQ
 
           def initialize(@client_properties : Table, @mechanism : String,
                          @response : String, @locale : String, bytesize = nil)
-            bytesize ||= @client_properties.bytesize + 1 + @mechanism.bytesize + 4 +
-                         @response.bytesize + 1 + @locale.bytesize
+            if bytesize.nil?
+              bytesize = @client_properties.bytesize.to_u32 + # client_properties Table
+                         short_string_size(@mechanism) +      # mechanism ShortString (1 + length)
+                         long_string_size(@response) +        # response LongString (4 + length)
+                         short_string_size(@locale)           # locale ShortString (1 + length)
+            end
             super(bytesize.to_u32)
           end
 
@@ -481,7 +521,11 @@ module AMQ
           end
 
           def initialize(@vhost = "/", @reserved1 = "", @reserved2 = false, bytesize = nil)
-            bytesize ||= 1 + @vhost.bytesize + 1 + @reserved1.bytesize + 1
+            if bytesize.nil?
+              bytesize = short_string_size(@vhost) +     # vhost ShortString
+                         short_string_size(@reserved1) + # reserved1 ShortString
+                         sizeof(Bool)                    # reserved2 boolean
+            end
             super(bytesize.to_u32)
           end
 
@@ -511,7 +555,9 @@ module AMQ
           end
 
           def initialize(@reserved1 = "", bytesize = nil)
-            bytesize ||= 1 + @reserved1.bytesize
+            if bytesize.nil?
+              bytesize = short_string_size(@reserved1) # reserved1 ShortString
+            end
             super(bytesize.to_u32)
           end
 
@@ -538,7 +584,12 @@ module AMQ
 
           def initialize(@reply_code : UInt16, @reply_text : String, @failing_class_id : UInt16,
                          @failing_method_id : UInt16, bytesize = nil)
-            bytesize ||= 2 + 1 + @reply_text.bytesize + 2 + 2
+            if bytesize.nil?
+              bytesize = sizeof(UInt16) +                 # reply_code
+                         short_string_size(@reply_text) + # reply_text ShortString
+                         sizeof(UInt16) +                 # failing_class_id
+                         sizeof(UInt16)                   # failing_method_id
+            end
             super(bytesize.to_u32)
           end
 
@@ -586,7 +637,9 @@ module AMQ
           getter reason
 
           def initialize(@reason : String, bytesize = nil)
-            bytesize ||= 1 + @reason.bytesize
+            if bytesize.nil?
+              bytesize = short_string_size(@reason) # reason ShortString
+            end
             super(bytesize.to_u32)
           end
 
@@ -625,10 +678,13 @@ module AMQ
             METHOD_ID
           end
 
-          getter reason
+          getter secret, reason
 
           def initialize(@secret : String, @reason : String, bytesize = nil)
-            bytesize ||= 4 + @secret.bytesize + 1 + @reason.bytesize
+            if bytesize.nil?
+              bytesize = long_string_size(@secret) + # secret LongString
+                         short_string_size(@reason)  # reason ShortString
+            end
             super(bytesize.to_u32)
           end
 
@@ -680,7 +736,9 @@ module AMQ
           getter reserved1
 
           def initialize(channel : UInt16, @reserved1 = "", bytesize = nil)
-            bytesize ||= 1 + @reserved1.bytesize
+            if bytesize.nil?
+              bytesize = short_string_size(@reserved1) # reserved1 ShortString
+            end
             super(channel, bytesize.to_u32)
           end
 
@@ -706,7 +764,9 @@ module AMQ
           getter reserved1
 
           def initialize(channel : UInt16, @reserved1 = "", bytesize = nil)
-            bytesize ||= 4 + @reserved1.bytesize
+            if bytesize.nil?
+              bytesize = long_string_size(@reserved1) # reserved1 LongString
+            end
             super(channel, bytesize.to_u32)
           end
 
@@ -783,7 +843,12 @@ module AMQ
 
           def initialize(channel : UInt16, @reply_code : UInt16, @reply_text : String,
                          @classid : UInt16, @methodid : UInt16, bytesize = nil)
-            bytesize ||= 2 + 1 + @reply_text.bytesize + 2 + 2
+            if bytesize.nil?
+              bytesize = sizeof(UInt16) +                 # reply_code
+                         short_string_size(@reply_text) + # reply_text ShortString
+                         sizeof(UInt16) +                 # classid
+                         sizeof(UInt16)                   # methodid
+            end
             super(channel, bytesize.to_u32)
           end
 
@@ -842,7 +907,13 @@ module AMQ
                          @exchange_type : String, @passive : Bool, @durable : Bool, @auto_delete : Bool,
                          @internal : Bool, @no_wait : Bool, @arguments : Table,
                          bytesize = nil)
-            bytesize ||= 2 + 1 + @exchange_name.bytesize + 1 + @exchange_type.bytesize + 1 + @arguments.bytesize
+            if bytesize.nil?
+              bytesize = sizeof(UInt16) +                    # reserved1
+                         short_string_size(@exchange_name) + # exchange_name ShortString
+                         short_string_size(@exchange_type) + # exchange_type ShortString
+                         sizeof(Bool) +                      # bit field
+                         @arguments.bytesize.to_u32          # arguments Table
+            end
             super(channel, bytesize.to_u32)
           end
 
@@ -905,7 +976,11 @@ module AMQ
 
           def initialize(channel : UInt16, @reserved1 : UInt16, @exchange_name : String,
                          @if_unused : Bool, @no_wait : Bool, bytesize = nil)
-            bytesize ||= 2 + 1 + @exchange_name.bytesize + 1
+            if bytesize.nil?
+              bytesize = sizeof(UInt16) +                    # reserved1
+                         short_string_size(@exchange_name) + # exchange_name ShortString
+                         sizeof(Bool)                        # bit field
+            end
             super(channel, bytesize.to_u32)
           end
 
@@ -959,8 +1034,14 @@ module AMQ
                          @source : String, @routing_key : String, @no_wait : Bool,
                          @arguments : Table,
                          bytesize = nil)
-            bytesize ||= 2 + 2 + 1 + @destination.bytesize + 1 + @source.bytesize + 1 +
-                         @routing_key.bytesize + 1 + @arguments.bytesize
+            if bytesize.nil?
+              bytesize = sizeof(UInt16) +                  # reserved1 (2 bytes)
+                         short_string_size(@destination) + # destination ShortString (1 + length)
+                         short_string_size(@source) +      # source ShortString (1 + length)
+                         short_string_size(@routing_key) + # routing_key ShortString (1 + length)
+                         sizeof(Bool) +                    # no_wait boolean (1 byte)
+                         @arguments.bytesize.to_u32        # arguments Table
+            end
             super(channel, bytesize.to_u32)
           end
 
@@ -1015,8 +1096,14 @@ module AMQ
           def initialize(channel : UInt16, @reserved1 : UInt16, @destination : String,
                          @source : String, @routing_key : String, @no_wait : Bool,
                          @arguments : Table, bytesize = nil)
-            bytesize ||= 2 + 1 + @destination.bytesize + 1 + @source.bytesize + 1 +
-                         @routing_key.bytesize + 1 + @arguments.bytesize
+            if bytesize.nil?
+              bytesize = sizeof(UInt16) +                  # reserved1 (2 bytes)
+                         short_string_size(@destination) + # destination ShortString (1 + length)
+                         short_string_size(@source) +      # source ShortString (1 + length)
+                         short_string_size(@routing_key) + # routing_key ShortString (1 + length)
+                         sizeof(Bool) +                    # no_wait boolean (1 byte)
+                         @arguments.bytesize.to_u32        # arguments Table
+            end
             super(channel, bytesize.to_u32)
           end
 
@@ -1085,7 +1172,12 @@ module AMQ
                          @passive : Bool, @durable : Bool, @exclusive : Bool,
                          @auto_delete : Bool, @no_wait : Bool, @arguments : Table,
                          bytesize = nil)
-            bytesize ||= 2 + 1 + @queue_name.bytesize + 1 + @arguments.bytesize
+            if bytesize.nil?
+              bytesize = sizeof(UInt16) +                 # reserved1
+                         short_string_size(@queue_name) + # queue_name ShortString
+                         sizeof(Bool) +                   # bit field
+                         @arguments.bytesize.to_u32       # arguments Table
+            end
             super(channel, bytesize.to_u32)
           end
 
@@ -1129,7 +1221,11 @@ module AMQ
 
           def initialize(channel : UInt16, @queue_name : String, @message_count : UInt32,
                          @consumer_count : UInt32, bytesize = nil)
-            bytesize ||= 1 + @queue_name.bytesize + 4 + 4
+            if bytesize.nil?
+              bytesize = short_string_size(@queue_name) + # queue_name ShortString
+                         sizeof(UInt32) +                 # message_count
+                         sizeof(UInt32)                   # consumer_count
+            end
             super(channel, bytesize.to_u32)
           end
 
@@ -1171,8 +1267,14 @@ module AMQ
           def initialize(channel : UInt16, @reserved1 : UInt16, @queue_name : String,
                          @exchange_name : String, @routing_key : String, @no_wait : Bool,
                          @arguments : Table, bytesize = nil)
-            bytesize ||= 2 + 1 + @queue_name.bytesize + 1 + @exchange_name.bytesize + 1 +
-                         @routing_key.bytesize + 1 + @arguments.bytesize
+            if bytesize.nil?
+              bytesize = sizeof(UInt16) +                    # reserved1 (2 bytes)
+                         short_string_size(@queue_name) +    # queue_name ShortString (1 + length)
+                         short_string_size(@exchange_name) + # exchange_name ShortString (1 + length)
+                         short_string_size(@routing_key) +   # routing_key ShortString (1 + length)
+                         sizeof(Bool) +                      # no_wait boolean (1 byte)
+                         @arguments.bytesize.to_u32          # arguments Table
+            end
             super(channel, bytesize.to_u32)
           end
 
@@ -1232,7 +1334,11 @@ module AMQ
           def initialize(channel : UInt16, @reserved1 : UInt16, @queue_name : String,
                          @if_unused : Bool, @if_empty : Bool, @no_wait : Bool,
                          bytesize = nil)
-            bytesize ||= 2 + 1 + @queue_name.bytesize + 1
+            if bytesize.nil?
+              bytesize = sizeof(UInt16) +                 # reserved1
+                         short_string_size(@queue_name) + # queue_name ShortString
+                         sizeof(Bool)                     # bit field
+            end
             super(channel, bytesize.to_u32)
           end
 
@@ -1301,8 +1407,13 @@ module AMQ
           def initialize(channel : UInt16, @reserved1 : UInt16, @queue_name : String,
                          @exchange_name : String, @routing_key : String,
                          @arguments : Table, bytesize = nil)
-            bytesize ||= 2 + 1 + @queue_name.bytesize + 1 + @exchange_name.bytesize + 1 +
-                         @routing_key.bytesize + @arguments.bytesize
+            if bytesize.nil?
+              bytesize = sizeof(UInt16) +                    # reserved1
+                         short_string_size(@queue_name) +    # queue_name ShortString
+                         short_string_size(@exchange_name) + # exchange_name ShortString
+                         short_string_size(@routing_key) +   # routing_key ShortString
+                         @arguments.bytesize.to_u32          # arguments Table
+            end
             super(channel, bytesize.to_u32)
           end
 
@@ -1358,7 +1469,11 @@ module AMQ
 
           def initialize(channel : UInt16, @reserved1 : UInt16, @queue_name : String,
                          @no_wait : Bool, bytesize = nil)
-            bytesize ||= 2 + 1 + @queue_name.bytesize + 1
+            if bytesize.nil?
+              bytesize = sizeof(UInt16) +                 # reserved1
+                         short_string_size(@queue_name) + # queue_name ShortString
+                         sizeof(Bool)                     # no_wait boolean
+            end
             super(channel, bytesize.to_u32)
           end
 
@@ -1424,7 +1539,12 @@ module AMQ
           def initialize(channel, @reserved1 : UInt16, @exchange : String,
                          @routing_key : String, @mandatory : Bool, @immediate : Bool,
                          bytesize = nil)
-            bytesize ||= 2 + 1 + @exchange.bytesize + 1 + @routing_key.bytesize + 1
+            if bytesize.nil?
+              bytesize = sizeof(UInt16) +                  # reserved1
+                         short_string_size(@exchange) +    # exchange ShortString
+                         short_string_size(@routing_key) + # routing_key ShortString
+                         sizeof(Bool)                      # bit field
+            end
             super(channel, bytesize.to_u32)
           end
 
@@ -1463,8 +1583,13 @@ module AMQ
           def initialize(channel, @consumer_tag : String, @delivery_tag : UInt64,
                          @redelivered : Bool, @exchange : String, @routing_key : String,
                          bytesize = nil)
-            bytesize ||= 1 + @consumer_tag.bytesize + sizeof(UInt64) + 1 + 1 +
-                         @exchange.bytesize + 1 + @routing_key.bytesize
+            if bytesize.nil?
+              bytesize = short_string_size(@consumer_tag) + # consumer_tag ShortString
+                         sizeof(UInt64) +                   # delivery_tag
+                         sizeof(Bool) +                     # redelivered boolean
+                         short_string_size(@exchange) +     # exchange ShortString
+                         short_string_size(@routing_key)    # routing_key ShortString
+            end
             super(channel, bytesize.to_u32)
           end
 
@@ -1504,7 +1629,11 @@ module AMQ
 
           def initialize(channel, @reserved1 : UInt16, @queue : String, @no_ack : Bool,
                          bytesize = nil)
-            bytesize ||= sizeof(UInt16) + 1 + @queue.bytesize + 1
+            if bytesize.nil?
+              bytesize = sizeof(UInt16) +            # reserved1
+                         short_string_size(@queue) + # queue ShortString
+                         sizeof(Bool)                # no_ack boolean
+            end
             super(channel, bytesize.to_u32)
           end
 
@@ -1536,8 +1665,13 @@ module AMQ
           def initialize(channel, @delivery_tag : UInt64, @redelivered : Bool,
                          @exchange : String, @routing_key : String, @message_count : UInt32,
                          bytesize = nil)
-            bytesize ||= sizeof(UInt64) + 1 + 1 + @exchange.bytesize + 1 +
-                         @routing_key.bytesize + sizeof(UInt32)
+            if bytesize.nil?
+              bytesize = sizeof(UInt64) +                  # delivery_tag
+                         sizeof(Bool) +                    # redelivered boolean
+                         short_string_size(@exchange) +    # exchange ShortString
+                         short_string_size(@routing_key) + # routing_key ShortString
+                         sizeof(UInt32)                    # message_count
+            end
             super(channel, bytesize.to_u32)
           end
 
@@ -1569,7 +1703,9 @@ module AMQ
           end
 
           def initialize(channel, @reserved1 = "", bytesize = nil)
-            bytesize ||= 1 + @reserved1.bytesize
+            if bytesize.nil?
+              bytesize = short_string_size(@reserved1) # reserved1 ShortString
+            end
             super(channel, bytesize.to_u32)
           end
 
@@ -1752,8 +1888,13 @@ module AMQ
           def initialize(channel, @reserved1 : UInt16, @queue : String, @consumer_tag : String,
                          @no_local : Bool, @no_ack : Bool, @exclusive : Bool, @no_wait : Bool,
                          @arguments : Table, bytesize = nil)
-            bytesize ||= 2 + 1 + @queue.bytesize + 1 + @consumer_tag.bytesize + 1 +
-                         @arguments.bytesize
+            if bytesize.nil?
+              bytesize = sizeof(UInt16) +                   # reserved1
+                         short_string_size(@queue) +        # queue ShortString
+                         short_string_size(@consumer_tag) + # consumer_tag ShortString
+                         sizeof(Bool) +                     # bit field
+                         @arguments.bytesize.to_u32         # arguments Table
+            end
             super(channel, bytesize.to_u32)
           end
 
@@ -1796,7 +1937,9 @@ module AMQ
           getter consumer_tag
 
           def initialize(channel, @consumer_tag : String, bytesize = nil)
-            bytesize ||= 1 + @consumer_tag.bytesize
+            if bytesize.nil?
+              bytesize = short_string_size(@consumer_tag) # consumer_tag ShortString
+            end
             super(channel, bytesize.to_u32)
           end
 
@@ -1824,8 +1967,12 @@ module AMQ
           def initialize(channel, @reply_code : UInt16, @reply_text : String,
                          @exchange : String, @routing_key : String,
                          bytesize = nil)
-            bytesize ||= 2 + 1 + @reply_text.bytesize + 1 + @exchange.bytesize + 1 +
-                         @routing_key.bytesize
+            if bytesize.nil?
+              bytesize = sizeof(UInt16) +                 # reply_code
+                         short_string_size(@reply_text) + # reply_text ShortString
+                         short_string_size(@exchange) +   # exchange ShortString
+                         short_string_size(@routing_key)  # routing_key ShortString
+            end
             super(channel, bytesize.to_u32)
           end
 
@@ -1857,7 +2004,10 @@ module AMQ
           getter consumer_tag, no_wait
 
           def initialize(channel : UInt16, @consumer_tag : String, @no_wait : Bool, bytesize = nil)
-            bytesize ||= 1 + @consumer_tag.bytesize + 1
+            if bytesize.nil?
+              bytesize = short_string_size(@consumer_tag) + # consumer_tag ShortString
+                         sizeof(Bool)                       # no_wait boolean
+            end
             super(channel, bytesize.to_u32)
           end
 
@@ -1885,7 +2035,9 @@ module AMQ
           getter consumer_tag
 
           def initialize(channel : UInt16, @consumer_tag : String, bytesize = nil)
-            bytesize ||= 1 + @consumer_tag.bytesize
+            if bytesize.nil?
+              bytesize = short_string_size(@consumer_tag) # consumer_tag ShortString
+            end
             super(channel, bytesize.to_u32)
           end
 

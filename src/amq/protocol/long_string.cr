@@ -12,6 +12,10 @@ module AMQ
 
       def self.from_io(io, format) : String
         sz = UInt32.from_io(io, format)
+        # Check size limit before allocation if IO supports it
+        if stream = io.as?(AMQ::Protocol::Stream)
+          stream.assert_within_frame(sz)
+        end
         io.read_string(sz)
       end
     end
