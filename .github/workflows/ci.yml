@@ -25,10 +25,9 @@ jobs:
     runs-on: ubuntu-latest
     container: 84codes/crystal:latest-ubuntu-26.04
     steps:
-      - run: crystal version
       - uses: actions/checkout@v6
       - run: shards install
-      - run: crystal spec --order random
+      - run: crystal spec --order random -Dpreview_mt -Dexecution_context
 
   format:
     name: Formatting
