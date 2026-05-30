@@ -161,6 +161,38 @@ describe AMQ::Protocol::Table do
       t1.merge!({"c" => nil} of String => AMQ::Protocol::Field)
       t1.to_h.should eq({"a" => 1, "b" => "foo", "c" => nil})
     end
+
+    it "supports merging itself" do
+      t1 = AMQ::Protocol::Table.new({a: 1, b: "foo", c: nil})
+      t1.merge!(t1)
+      t1.to_h.should eq({"a" => 1, "b" => "foo", "c" => nil})
+      t1.size.should eq 3
+    end
+  end
+
+  it "raises when table bytes end before the declared table size" do
+    bytes = Bytes[0_u8, 0_u8, 0_u8, 10_u8]
+    expect_raises(IO::EOFError) do
+      AMQ::Protocol::Table.from_bytes(bytes, IO::ByteFormat::NetworkEndian)
+    end
+  end
+
+  it "raises when IO ends before the declared table size" do
+    io = IO::Memory.new(Bytes[0_u8, 0_u8, 0_u8, 10_u8])
+    expect_raises(IO::EOFError) do
+      AMQ::Protocol::Table.from_io(io, IO::ByteFormat::NetworkEndian)
+    end
+  end
+
+  it "raises when a byte-array field ends before its declared size" do
+    bytes = Bytes[
+      0_u8, 0_u8, 0_u8, 7_u8, # table size
+      1_u8, 120_u8,           # key: "x"
+      120_u8,                 # field type: byte array
+      0_u8, 0_u8, 0_u8, 10_u8 # byte-array size
+    ]
+    table = AMQ::Protocol::Table.from_bytes(bytes, IO::ByteFormat::NetworkEndian)
+    expect_raises(IO::EOFError) { table["x"] }
   end
 
   it "can add fields" do
@@ -300,6 +332,38 @@ describe AMQ::Protocol::Table do
     end
   end
 
+  it "can be iterated concurrently from fibers across threads" do
+    hash = Hash(String, AMQ::Protocol::Field).new
+    50.times { |i| hash["key#{i}"] = "value#{i}" }
+    t1 = AMQ::Protocol::Table.new(hash)
+    t2 = AMQ::Protocol::Table.new(hash)
+
+    consumers = Fiber::ExecutionContext::Parallel.new("consumers", 8)
+    fiber_count = 16
+    iterations = 200
+    done = Channel(Exception?).new(fiber_count)
+
+    fiber_count.times do
+      consumers.spawn do
+        err : Exception? = nil
+        begin
+          iterations.times do
+            (t1 == t2).should be_true
+          end
+        rescue ex
+          err = ex
+        end
+        done.send(err)
+      end
+    end
+
+    fiber_count.times do
+      if ex = done.receive
+        raise ex
+      end
+    end
+  end
+
   # Verifies bugfix for Sub-table memory corruption
   # https://github.com/cloudamqp/amq-protocol.cr/pull/14
   describe "should not overwrite sub-tables memory when reassigning values in a Table" do
@@ -334,5 +398,33 @@ describe AMQ::Protocol::Table do
       # Verify that read_table wasn't modified by reassignment of "foo"
       read_table.should eq child_table
     end
+  end
+
+  it "can add fields" do
+    t1 = AMQ::Protocol::Table.new({"foo": "bar"})
+    t1["x-stream-offset"] = 1i64
+    t1["x-delay"]?.should be_nil
+    t1.to_h.should eq({"foo" => "bar", "x-stream-offset" => 1i64})
+  end
+
+  it "can add to fields to empty" do
+    t1 = AMQ::Protocol::Table.new
+    t1["x-stream-offset"] = 1i64
+    t1["x-delay"]?.should be_nil
+    t1.to_h.should eq({"x-stream-offset" => 1i64})
+  end
+
+  it "overwrites a same-type fixed-size value in place without resizing" do
+    t1 = AMQ::Protocol::Table.new({"a": 1i64, "b": "tail"})
+    bytesize_before = t1.bytesize
+    t1["a"] = 42i64
+    t1.bytesize.should eq bytesize_before
+    t1.to_h.should eq({"a" => 42i64, "b" => "tail"})
+  end
+
+  it "replaces a value when the new type differs from the existing one" do
+    t1 = AMQ::Protocol::Table.new({"a": 1i32, "b": "tail"})
+    t1["a"] = 42i64
+    t1.to_h.should eq({"a" => 42i64, "b" => "tail"})
   end
 end
