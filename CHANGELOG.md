@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+## [1.2.0] - 2026-05-30
+
+### Changed
+- `Table` is now backed by a raw `Bytes` buffer instead of `IO::Memory`, and is a class rather than a struct. Key lookups compare keys byte-by-byte against the wire buffer and fixed-size values are overwritten in place on `#[]=`, significantly improving performance.
+- `Table` iteration uses a local cursor instead of a shared position, so multiple fibers can read the same `Table` in parallel.
+
+### Fixed
+- `Table.from_bytes` respects the `read_only` flag of the underlying `Bytes`, copying when the buffer is writable and only aliasing it when read-only, avoiding memory corruption from mutating a shared buffer.
+- Bounds checks and nil handling in `Table#each`/`#==`.
+
 ## [1.1.22] - 2025-12-09
 
 ### Fixed
