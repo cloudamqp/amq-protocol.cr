@@ -56,19 +56,18 @@ describe AMQ::Protocol::Frame::Heartbeat do
     end
   end
 
-  it "rejects heartbeat frames with non-zero channel" do
+  it "decodes heartbeat frames with non-zero channel" do
     io = IO::Memory.new
     format = IO::ByteFormat::NetworkEndian
 
-    # Manually construct a malformed heartbeat with non-zero channel
+    # Preserve the channel so consumers can classify the frame.
     io.write_byte(8_u8)           # Heartbeat frame type
-    io.write_bytes(5_u16, format) # Channel 5 (invalid for heartbeat!)
+    io.write_bytes(5_u16, format) # Channel 5
     io.write_bytes(0_u32, format) # Size 0
     io.write_byte(206_u8)         # Frame end marker
     io.rewind
 
-    expect_raises(AMQ::Protocol::Error::FrameDecode, /Heartbeat frame channel must be 0, got 5/) do
-      AMQ::Protocol::Stream.new(io).next_frame
-    end
+    frame = AMQ::Protocol::Stream.new(io).next_frame.as(AMQ::Protocol::Frame::Heartbeat)
+    frame.channel.should eq 5
   end
 end
