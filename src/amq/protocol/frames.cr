@@ -201,9 +201,8 @@ module AMQ
           TYPE
         end
 
-        def initialize
-          @channel = 0_u16
-          @bytesize = 0_u32
+        def initialize(channel : UInt16 = 0_u16)
+          super(channel, 0_u32)
         end
 
         def to_io(io, format)
@@ -211,13 +210,10 @@ module AMQ
         end
 
         def self.from_io(channel, size, io, format)
-          unless channel.zero?
-            raise Protocol::Error::FrameDecode.new("Heartbeat frame channel must be 0, got #{channel}")
-          end
           unless size.zero?
             raise Protocol::Error::FrameDecode.new("Heartbeat frame size must be 0, got #{size}")
           end
-          new
+          new(channel)
         end
       end
 
