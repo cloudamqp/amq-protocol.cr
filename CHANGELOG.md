@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [1.2.1] - 2026-06-08
+
+### Changed
+
+- Don't raise when heartbeat frames are sent on channel other than 0, let the library user handle that [#38](https://github.com/cloudamqp/amq-protocol.cr/pull/38)
+
 ## [1.2.0] - 2026-05-30
 
 ### Changed
