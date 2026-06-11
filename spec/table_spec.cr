@@ -414,6 +414,74 @@ describe AMQ::Protocol::Table do
     t1.to_h.should eq({"x-stream-offset" => 1i64})
   end
 
+  describe "#has_entry?" do
+    it "returns true when key is present and value is equal" do
+      t1 = AMQ::Protocol::Table.new({str: "foo", int: 42, bool: true, nilval: nil, float: 1.5})
+      t1.has_entry?("str", "foo").should be_true
+      t1.has_entry?("int", 42).should be_true
+      t1.has_entry?("bool", true).should be_true
+      t1.has_entry?("nilval", nil).should be_true
+      t1.has_entry?("float", 1.5).should be_true
+    end
+
+    it "returns false when key is present but value differs" do
+      t1 = AMQ::Protocol::Table.new({str: "foo", int: 42, bool: true})
+      t1.has_entry?("str", "bar").should be_false
+      t1.has_entry?("str", "fo").should be_false
+      t1.has_entry?("int", 43).should be_false
+      t1.has_entry?("bool", false).should be_false
+    end
+
+    it "returns false when key is absent" do
+      t1 = AMQ::Protocol::Table.new({a: 1})
+      t1.has_entry?("b", 1).should be_false
+      AMQ::Protocol::Table.new.has_entry?("a", 1).should be_false
+    end
+
+    it "compares numerics across types" do
+      t1 = AMQ::Protocol::Table.new({a: 1_i64, b: 1_u8})
+      t1.has_entry?("a", 1_i32).should be_true
+      t1.has_entry?("b", 1_i64).should be_true
+      t1.has_entry?("a", 2_i32).should be_false
+    end
+
+    it "returns false on type mismatch" do
+      t1 = AMQ::Protocol::Table.new({str: "1", bytes: "foo".to_slice, int: 1})
+      t1.has_entry?("str", 1).should be_false
+      t1.has_entry?("bytes", "foo").should be_false
+      t1.has_entry?("int", "1").should be_false
+    end
+
+    it "compares nested table values" do
+      t1 = AMQ::Protocol::Table.new({nested: {"a" => 1}})
+      t1.has_entry?("nested", AMQ::Protocol::Table.new({a: 1})).should be_true
+      t1.has_entry?("nested", AMQ::Protocol::Table.new({a: 2})).should be_false
+    end
+
+    it "compares against the first occurrence when keys are duplicated" do
+      first = AMQ::Protocol::Table.new({a: "first"})
+      second = AMQ::Protocol::Table.new({a: "second", b: 1})
+      bytes = Bytes.new(first.to_slice.size + second.to_slice.size)
+      first.to_slice.copy_to(bytes)
+      second.to_slice.copy_to(bytes + first.to_slice.size)
+      degenerate = AMQ::Protocol::Table.new(bytes)
+      degenerate["a"].should eq "first" # fetch semantics
+      degenerate.has_entry?("a", "first").should be_true
+      degenerate.has_entry?("a", "second").should be_false
+      degenerate.has_entry?("b", 1).should be_true
+    end
+
+    it "behaves like has_key? && fetch == value" do
+      t1 = AMQ::Protocol::Table.new({str: "foo", int: 42, nilval: nil})
+      {"str", "int", "nilval", "missing"}.each do |key|
+        {"foo", 42, nil, "other"}.each do |value|
+          expected = t1.has_key?(key) && t1[key] == value
+          t1.has_entry?(key, value).should eq(expected)
+        end
+      end
+    end
+  end
+
   it "overwrites a same-type fixed-size value in place without resizing" do
     t1 = AMQ::Protocol::Table.new({"a": 1i64, "b": "tail"})
     bytesize_before = t1.bytesize
