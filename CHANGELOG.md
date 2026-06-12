@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [1.3.0] - 2026-06-12
+
+### Added
+
+- `Table#has_entry?(key, value)` compares a stored entry against an expected value byte-wise, without materializing a `String` for string fields, eliminating the allocation in headers-exchange match paths
+
 ## [1.2.1] - 2026-06-08
 
 ### Changed
