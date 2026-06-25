@@ -111,9 +111,9 @@ module AMQ
       macro deprecated_bool_getter(*names)
         {% for name in names %}
           {% msg = "Use `#" + name.id.stringify + "?` instead" %}
-          @[Deprecated({{msg}})]
-          def {{name.id}}
-            @{{name.id}}
+          @[Deprecated({{ msg }})]
+          def {{ name.id }}
+            @{{ name.id }}
           end
         {% end %}
       end
