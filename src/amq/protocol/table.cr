@@ -337,7 +337,8 @@ module AMQ
         size ||= UInt32.from_io(io, format)
         case io
         when IO::Memory
-          if io.@writeable # Need to copy the bytes to prevent modification being mirrored here
+          # `IO::Memory`'s `@writeable` flag was renamed to `@writable` in Crystal 1.21.0
+          if {% if compare_versions(Crystal::VERSION, "1.21.0") >= 0 %} io.@writable {% else %} io.@writeable {% end %} # Need to copy the bytes to prevent modification being mirrored here
             bytes = Bytes.new(size)
             io.read_fully(bytes)
             new(bytes)
