@@ -106,6 +106,18 @@ module AMQ
         sizeof(UInt32).to_u32 + str.bytesize
       end
 
+      # Defines deprecated non-`?` getters that delegate to the instance variable,
+      # pointing callers at the new `name?` query method. Pair with `getter? name`.
+      macro deprecated_bool_getter(*names)
+        {% for name in names %}
+          {% msg = "Use `#" + name.id.stringify + "?` instead" %}
+          @[Deprecated({{ msg }})]
+          def {{ name.id }}
+            @{{ name.id }}
+          end
+        {% end %}
+      end
+
       struct Header < Frame
         TYPE = 2_u8
 
@@ -785,7 +797,8 @@ module AMQ
             METHOD_ID
           end
 
-          getter active
+          getter? active
+          deprecated_bool_getter active
 
           def initialize(channel : UInt16, @active : Bool)
             super(channel, 1_u32)
@@ -810,7 +823,8 @@ module AMQ
             METHOD_ID
           end
 
-          getter active
+          getter? active
+          deprecated_bool_getter active
 
           def initialize(channel : UInt16, @active : Bool)
             super(channel, 1_u32)
@@ -897,7 +911,9 @@ module AMQ
             METHOD_ID
           end
 
-          getter reserved1, exchange_name, exchange_type, passive, durable, auto_delete, internal, no_wait, arguments
+          getter reserved1, exchange_name, exchange_type, arguments
+          getter? passive, durable, auto_delete, internal, no_wait
+          deprecated_bool_getter passive, durable, auto_delete, internal, no_wait
 
           def initialize(channel : UInt16, @reserved1 : UInt16, @exchange_name : String,
                          @exchange_type : String, @passive : Bool, @durable : Bool, @auto_delete : Bool,
@@ -968,7 +984,9 @@ module AMQ
             METHOD_ID
           end
 
-          getter reserved1, exchange_name, if_unused, no_wait
+          getter reserved1, exchange_name
+          getter? if_unused, no_wait
+          deprecated_bool_getter if_unused, no_wait
 
           def initialize(channel : UInt16, @reserved1 : UInt16, @exchange_name : String,
                          @if_unused : Bool, @no_wait : Bool, bytesize = nil)
@@ -1024,7 +1042,9 @@ module AMQ
             METHOD_ID
           end
 
-          getter reserved1, destination, source, routing_key, no_wait, arguments
+          getter reserved1, destination, source, routing_key, arguments
+          getter? no_wait
+          deprecated_bool_getter no_wait
 
           def initialize(channel : UInt16, @reserved1 : UInt16, @destination : String,
                          @source : String, @routing_key : String, @no_wait : Bool,
@@ -1087,7 +1107,9 @@ module AMQ
             METHOD_ID
           end
 
-          getter reserved1, destination, source, routing_key, no_wait, arguments
+          getter reserved1, destination, source, routing_key, arguments
+          getter? no_wait
+          deprecated_bool_getter no_wait
 
           def initialize(channel : UInt16, @reserved1 : UInt16, @destination : String,
                          @source : String, @routing_key : String, @no_wait : Bool,
@@ -1157,7 +1179,9 @@ module AMQ
             METHOD_ID
           end
 
-          getter reserved1, passive, durable, exclusive, auto_delete, no_wait, arguments, queue_name
+          getter reserved1, arguments, queue_name
+          getter? passive, durable, exclusive, auto_delete, no_wait
+          deprecated_bool_getter passive, durable, exclusive, auto_delete, no_wait
 
           def queue_name=(name)
             @bytesize += name.bytesize - @queue_name.bytesize
@@ -1248,7 +1272,9 @@ module AMQ
             METHOD_ID
           end
 
-          getter reserved1, exchange_name, no_wait, arguments, queue_name, routing_key
+          getter reserved1, exchange_name, arguments, queue_name, routing_key
+          getter? no_wait
+          deprecated_bool_getter no_wait
 
           def queue_name=(name)
             @bytesize += name.bytesize - @queue_name.bytesize
@@ -1320,7 +1346,9 @@ module AMQ
             METHOD_ID
           end
 
-          getter reserved1, if_unused, if_empty, no_wait, queue_name
+          getter reserved1, queue_name
+          getter? if_unused, if_empty, no_wait
+          deprecated_bool_getter if_unused, if_empty, no_wait
 
           def queue_name=(name)
             @bytesize += name.bytesize - @queue_name.bytesize
@@ -1456,7 +1484,9 @@ module AMQ
             METHOD_ID
           end
 
-          getter reserved1, no_wait, queue_name
+          getter reserved1, queue_name
+          getter? no_wait
+          deprecated_bool_getter no_wait
 
           def queue_name=(name)
             @bytesize += name.bytesize - @queue_name.bytesize
@@ -1530,7 +1560,9 @@ module AMQ
             METHOD_ID
           end
 
-          getter exchange, routing_key, mandatory, immediate
+          getter exchange, routing_key
+          getter? mandatory, immediate
+          deprecated_bool_getter mandatory, immediate
 
           def initialize(channel, @reserved1 : UInt16, @exchange : String,
                          @routing_key : String, @mandatory : Bool, @immediate : Bool,
@@ -1574,7 +1606,9 @@ module AMQ
             METHOD_ID
           end
 
-          getter consumer_tag, delivery_tag, redelivered, exchange, routing_key
+          getter consumer_tag, delivery_tag, exchange, routing_key
+          getter? redelivered
+          deprecated_bool_getter redelivered
 
           def initialize(channel, @consumer_tag : String, @delivery_tag : UInt64,
                          @redelivered : Bool, @exchange : String, @routing_key : String,
@@ -1616,7 +1650,9 @@ module AMQ
             METHOD_ID
           end
 
-          getter no_ack, queue
+          getter queue
+          getter? no_ack
+          deprecated_bool_getter no_ack
 
           def queue=(name)
             @bytesize += name.bytesize - @queue.bytesize
@@ -1656,7 +1692,9 @@ module AMQ
             METHOD_ID
           end
 
-          getter delivery_tag, redelivered, exchange, routing_key, message_count
+          getter delivery_tag, exchange, routing_key, message_count
+          getter? redelivered
+          deprecated_bool_getter redelivered
 
           def initialize(channel, @delivery_tag : UInt64, @redelivered : Bool,
                          @exchange : String, @routing_key : String, @message_count : UInt32,
@@ -1724,7 +1762,9 @@ module AMQ
             METHOD_ID
           end
 
-          getter delivery_tag, multiple
+          getter delivery_tag
+          getter? multiple
+          deprecated_bool_getter multiple
 
           def initialize(channel, @delivery_tag : UInt64, @multiple : Bool)
             super(channel, 9_u32)
@@ -1757,7 +1797,9 @@ module AMQ
             METHOD_ID
           end
 
-          getter delivery_tag, requeue
+          getter delivery_tag
+          getter? requeue
+          deprecated_bool_getter requeue
 
           def initialize(channel, @delivery_tag : UInt64, @requeue : Bool)
             super(channel, 9_u32)
@@ -1790,7 +1832,9 @@ module AMQ
             METHOD_ID
           end
 
-          getter delivery_tag, multiple, requeue
+          getter delivery_tag
+          getter? multiple, requeue
+          deprecated_bool_getter multiple, requeue
 
           def initialize(channel, @delivery_tag : UInt64, @multiple : Bool, @requeue : Bool)
             super(channel, 9_u32)
@@ -1824,7 +1868,9 @@ module AMQ
             METHOD_ID
           end
 
-          getter prefetch_size, prefetch_count, global
+          getter prefetch_size, prefetch_count
+          getter? global
+          deprecated_bool_getter global
 
           def initialize(channel, @prefetch_size : UInt32, @prefetch_count : UInt16, @global : Bool)
             super(channel, 7_u32)
@@ -1869,7 +1915,9 @@ module AMQ
             METHOD_ID
           end
 
-          getter no_local, no_ack, exclusive, no_wait, arguments, queue, consumer_tag
+          getter arguments, queue, consumer_tag
+          getter? no_local, no_ack, exclusive, no_wait
+          deprecated_bool_getter no_local, no_ack, exclusive, no_wait
 
           def queue=(name)
             @bytesize += name.bytesize - @queue.bytesize
@@ -1997,7 +2045,9 @@ module AMQ
             METHOD_ID
           end
 
-          getter consumer_tag, no_wait
+          getter consumer_tag
+          getter? no_wait
+          deprecated_bool_getter no_wait
 
           def initialize(channel : UInt16, @consumer_tag : String, @no_wait : Bool, bytesize = nil)
             if bytesize.nil?
@@ -2056,7 +2106,8 @@ module AMQ
             METHOD_ID
           end
 
-          getter requeue
+          getter? requeue
+          deprecated_bool_getter requeue
 
           def initialize(channel : UInt16, @requeue : Bool)
             super(channel, 1_u32)
@@ -2105,7 +2156,8 @@ module AMQ
             METHOD_ID
           end
 
-          getter no_wait
+          getter? no_wait
+          deprecated_bool_getter no_wait
 
           def initialize(channel : UInt16, @no_wait : Bool)
             super(channel, 1_u32)
