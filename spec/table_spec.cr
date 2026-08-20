@@ -495,4 +495,72 @@ describe AMQ::Protocol::Table do
     t1["a"] = 42i64
     t1.to_h.should eq({"a" => 42i64, "b" => "tail"})
   end
+
+  describe "#freeze" do
+    it "returns self" do
+      tbl = AMQ::Protocol::Table.new({"key" => "value"})
+      tbl.freeze.should be tbl
+    end
+
+    it "raises on []=" do
+      tbl = AMQ::Protocol::Table.new({"key" => "value"}).freeze
+      expect_raises(AMQ::Protocol::Table::FrozenError, "Can't modify frozen Table") do
+        tbl["other"] = 1
+      end
+    end
+
+    it "raises on delete" do
+      tbl = AMQ::Protocol::Table.new({"key" => "value"}).freeze
+      expect_raises(AMQ::Protocol::Table::FrozenError) { tbl.delete("key") }
+    end
+
+    it "raises on reject!" do
+      tbl = AMQ::Protocol::Table.new({"key" => "value"}).freeze
+      expect_raises(AMQ::Protocol::Table::FrozenError) { tbl.reject! { true } }
+    end
+
+    it "raises on merge!" do
+      tbl = AMQ::Protocol::Table.new({"key" => "value"}).freeze
+      expect_raises(AMQ::Protocol::Table::FrozenError) { tbl.merge!({"other" => 1}) }
+    end
+
+    it "leaves the table unmodified when a mutation is rejected" do
+      tbl = AMQ::Protocol::Table.new({"key" => "value", "int" => 1}).freeze
+      before = tbl.to_slice.clone
+      expect_raises(AMQ::Protocol::Table::FrozenError) { tbl["int"] = 2 }
+      expect_raises(AMQ::Protocol::Table::FrozenError) { tbl.delete("key") }
+      tbl.to_slice.should eq before
+      tbl.to_h.should eq({"key" => "value", "int" => 1})
+    end
+
+    it "can still be read and encoded" do
+      tbl = AMQ::Protocol::Table.new({"key" => "value", "int" => 1}).freeze
+      tbl["key"].should eq "value"
+      tbl["missing"]?.should be_nil
+      tbl.has_key?("int").should be_true
+      tbl.has_entry?("key", "value").should be_true
+      tbl.size.should eq 2
+      io = IO::Memory.new
+      io.write_bytes tbl, IO::ByteFormat::NetworkEndian
+      io.rewind
+      AMQ::Protocol::Table.from_io(io, IO::ByteFormat::NetworkEndian).should eq tbl
+    end
+
+    it "raises instead of copy-on-writing a read-only buffer" do
+      io = IO::Memory.new
+      io.write_bytes AMQ::Protocol::Table.new({"key" => "value"}), IO::ByteFormat::NetworkEndian
+      read_only_io = IO::Memory.new(io.to_slice, false)
+      tbl = AMQ::Protocol::Table.from_io(read_only_io, IO::ByteFormat::NetworkEndian).freeze
+      expect_raises(AMQ::Protocol::Table::FrozenError) { tbl["other"] = 1 }
+      tbl.to_h.should eq({"key" => "value"})
+    end
+
+    it "does not propagate to clones" do
+      tbl = AMQ::Protocol::Table.new({"key" => "value"}).freeze
+      clone = tbl.clone
+      clone["other"] = 1
+      clone.to_h.should eq({"key" => "value", "other" => 1})
+      tbl.to_h.should eq({"key" => "value"})
+    end
+  end
 end
