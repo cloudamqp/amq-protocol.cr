@@ -151,7 +151,7 @@ module AMQ
       end
 
       def []=(key : String, value : Field)
-        check_writeable
+        check_writable
         unless overwrite_or_delete(key, value)
           write_short_string(key)
           write_field(value)
@@ -287,7 +287,7 @@ module AMQ
       end
 
       def delete(key : String)
-        check_writeable
+        check_writable
         do_delete(key)
       end
 
@@ -370,7 +370,7 @@ module AMQ
       end
 
       def reject!(& : String, Field -> _) : self
-        check_writeable
+        check_writable
         pos = 0
         while pos < @bytesize
           start_pos = pos
@@ -389,7 +389,7 @@ module AMQ
       def merge!(other : Hash(String, Field) | NamedTuple | self) : self
         return self if other.is_a?(Table) && other.same?(self)
 
-        check_writeable
+        check_writable
         other.each_key { |k| do_delete(k.to_s) }
         capacity = 0
         other.each { |k, v| capacity += 1 + k.to_s.bytesize + 1 + capacity_required(v) }
@@ -417,7 +417,7 @@ module AMQ
         raise IO::EOFError.new("Unexpected EOF while reading table")
       end
 
-      private def check_writeable : Nil
+      private def check_writable : Nil
         return unless @read_only
         buffer = GC.malloc_atomic(@bytesize).as(UInt8*)
         buffer.copy_from(@buffer, @bytesize)
