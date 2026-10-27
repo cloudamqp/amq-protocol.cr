@@ -5,7 +5,7 @@ module AMQ
   module Protocol
     # An IO wrapper that enforces AMQP frame size limits and reads frames
     # Use `next_frame` to read the next frame from the stream
-    # Don't use `read` directly unless you know what you're doing
+    # Don't use `read` or `read_byte` directly unless you know what you're doing
     class Stream < IO
       @io : IO
       @frame_max : UInt32
@@ -31,6 +31,15 @@ module AMQ
         count = @io.read(slice)
         @frame_remaining -= count
         count
+      end
+
+      def read_byte : UInt8?
+        if @frame_remaining.zero?
+          raise Protocol::Error::FrameSizeError.new("Frame has reached frame size limit")
+        end
+        byte = @io.read_byte
+        @frame_remaining -= 1 if byte
+        byte
       end
 
       # Delegate write to underlying IO without frame size checks
