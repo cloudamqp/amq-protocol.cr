@@ -1,5 +1,5 @@
 module AMQ
   module Protocol
-    VERSION = "1.1.16"
+    VERSION = "1.3.1"
   end
 end
