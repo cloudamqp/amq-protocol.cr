@@ -555,6 +555,15 @@ describe AMQ::Protocol::Table do
       tbl.to_h.should eq({"key" => "value"})
     end
 
+    it "returns a read-only slice so aliases can't mutate it" do
+      tbl = AMQ::Protocol::Table.new({"key" => "value", "int" => 1}).freeze
+      tbl.to_slice.read_only?.should be_true
+      alias_tbl = AMQ::Protocol::Table.new(tbl.to_slice)
+      alias_tbl["int"] = 2
+      alias_tbl.delete("key")
+      tbl.to_h.should eq({"key" => "value", "int" => 1})
+    end
+
     it "does not propagate to clones" do
       tbl = AMQ::Protocol::Table.new({"key" => "value"}).freeze
       clone = tbl.clone

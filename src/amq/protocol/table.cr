@@ -381,7 +381,7 @@ module AMQ
 
       def to_slice(pos = 0, length = @bytesize - pos)
         ensure_available(pos, length)
-        Bytes.new(@buffer + pos, length, read_only: @read_only)
+        Bytes.new(@buffer + pos, length, read_only: @read_only || @frozen)
       end
 
       def reject!(& : String, Field -> _) : self
