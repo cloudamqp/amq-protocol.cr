@@ -1,6 +1,47 @@
 require "./spec_helper"
 
+private class ByteCountingIO < IO
+  getter read_byte_calls = 0
+
+  def initialize(@io : IO::Memory)
+  end
+
+  def read(slice : Bytes)
+    @io.read(slice)
+  end
+
+  def read_byte : UInt8?
+    @read_byte_calls += 1
+    @io.read_byte
+  end
+
+  def write(slice : Bytes) : Nil
+    @io.write(slice)
+  end
+end
+
 describe AMQ::Protocol::Stream do
+  it "read_byte reads through the IO's read_byte and counts against the frame size" do
+    io = IO::Memory.new
+    format = IO::ByteFormat::NetworkEndian
+    io.write_byte(3_u8)
+    io.write_bytes(1_u16, format)
+    io.write_bytes(2_u32, format)
+    io.write("ab".to_slice)
+    io.write_byte(206_u8)
+    io.rewind
+    counting = ByteCountingIO.new(io)
+    stream = AMQ::Protocol::Stream.new(counting)
+
+    stream.next_frame do |frame|
+      frame.should be_a(AMQ::Protocol::Frame::Body)
+      stream.read_byte.should eq 'a'.ord
+      stream.read_byte.should eq 'b'.ord
+      counting.read_byte_calls.should eq 2
+      expect_raises(AMQ::Protocol::Error::FrameSizeError) { stream.read_byte }
+    end
+  end
+
   it "read enforces frame size limit during frame parsing" do
     # Create a frame with exactly the right amount of data
     io = IO::Memory.new
