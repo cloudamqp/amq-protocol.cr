@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `Table#freeze` makes a table immutable; mutating methods raise `Table::FrozenError` instead of copy-on-writing [#44](https://github.com/cloudamqp/amq-protocol.cr/pull/44)
+- `?` getters for boolean frame fields, e.g. `Queue::Declare#durable?` and `Basic::Deliver#redelivered?` [#40](https://github.com/cloudamqp/amq-protocol.cr/pull/40)
+
+### Deprecated
+
+- Non-`?` getters for boolean frame fields, e.g. `Queue::Declare#durable`; use the `?` variants instead [#40](https://github.com/cloudamqp/amq-protocol.cr/pull/40)
 
 ## [1.3.2] - 2026-10-28
 
