@@ -149,4 +149,18 @@ describe AMQ::Protocol::Frame::BytesBody do
     frame.to_io(io, IO::ByteFormat::NetworkEndian)
     io.to_slice.should eq Bytes[3, 0, 1, 0, 0, 0, 3, 1, 2, 3, 206]
   end
+
+  it "is encoded the same on both sides of the size it copies up to" do
+    {256, 257}.each do |size|
+      body = Bytes.new(size, &.to_u8!)
+      frame = AMQ::Protocol::Frame::BytesBody.new(1_u16, size.to_u32, body)
+      io = IO::Memory.new
+      frame.to_io(io, IO::ByteFormat::NetworkEndian)
+      bytes = io.to_slice
+      bytes.size.should eq size + 8
+      bytes[0, 7].should eq Bytes[3, 0, 1, 0, 0, 1, size - 256]
+      bytes[7, size].should eq body
+      bytes[-1].should eq 206
+    end
+  end
 end

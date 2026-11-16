@@ -204,13 +204,27 @@ module AMQ
 
         getter body_size, body
 
+        # Frames with bodies up to 256 bytes are written in one call, as
+        # copying the body costs less than two more calls
+        INLINE_FRAME_MAX = 264
+        INLINE_BODY_MAX  = INLINE_FRAME_MAX - 8
+
         def initialize(channel : UInt16, @body_size : UInt32, @body : Bytes)
           super(channel, @body_size)
         end
 
         def to_io(io, format)
-          wrap(io, format) do
-            io.write @body
+          if @body.size <= INLINE_BODY_MAX
+            buf = uninitialized UInt8[INLINE_FRAME_MAX]
+            slice = buf.to_slice[0, @body.size + 8]
+            encode_header(slice, format)
+            @body.copy_to(slice[7, @body.size])
+            slice[-1] = 206_u8
+            io.write slice
+          else
+            wrap(io, format) do
+              io.write @body
+            end
           end
         end
       end
