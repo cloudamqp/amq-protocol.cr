@@ -11,13 +11,19 @@ module AMQ
 
       def wrap(io, format : IO::ByteFormat, &) : Nil
         buf = uninitialized UInt8[7]
-        buf[0] = type
         slice = buf.to_slice
-        format.encode @channel, slice[1, 2]
-        format.encode @bytesize, slice[3, 4]
+        encode_header(slice, format)
         io.write slice
         yield
         io.write_byte 206_u8
+      end
+
+      # Writes the frame's type, channel and size into the first 7 bytes of
+      # *slice*
+      private def encode_header(slice : Bytes, format : IO::ByteFormat) : Nil
+        slice[0] = type
+        format.encode @channel, slice[1, 2]
+        format.encode @bytesize, slice[3, 4]
       end
 
       # Parse a frame from an IO
@@ -246,15 +252,22 @@ module AMQ
         abstract def class_id : UInt16
         abstract def method_id : UInt16
 
+        # Writes the frame header and the class and method ids at once
         def wrap(io, format, &)
-          super(io, format) do
-            buf = uninitialized UInt8[4]
-            slice = buf.to_slice
-            format.encode(class_id, slice[0, 2])
-            format.encode(method_id, slice[2, 2])
-            io.write slice
-            yield
-          end
+          buf = uninitialized UInt8[11]
+          slice = buf.to_slice
+          encode_method_header(slice, format)
+          io.write slice
+          yield
+          io.write_byte 206_u8
+        end
+
+        # Writes the frame header and the class and method ids into the first
+        # 11 bytes of *slice*
+        private def encode_method_header(slice : Bytes, format : IO::ByteFormat) : Nil
+          encode_header(slice, format)
+          format.encode(class_id, slice[7, 2])
+          format.encode(method_id, slice[9, 2])
         end
 
         # ameba:disable Metrics/CyclomaticComplexity
