@@ -144,16 +144,19 @@ module AMQ
           super(channel, bytesize.to_u32)
         end
 
+        # The frame header, the fixed fields and the property flags are
+        # written at once, as a header is sent for every message
         def to_io(io : IO, format : IO::ByteFormat)
-          wrap(io, format) do
-            buf = uninitialized UInt8[12]
-            slice = buf.to_slice
-            format.encode @class_id, slice[0, 2]
-            format.encode @weight, slice[2, 2]
-            format.encode @body_size, slice[4, 8]
-            io.write slice
-            io.write_bytes @properties, format
-          end
+          buf = uninitialized UInt8[21]
+          slice = buf.to_slice
+          encode_header(slice, format)
+          format.encode @class_id, slice[7, 2]
+          format.encode @weight, slice[9, 2]
+          format.encode @body_size, slice[11, 8]
+          format.encode @properties.flags, slice[19, 2]
+          io.write slice
+          @properties.fields_to_io(io, format)
+          io.write_byte 206_u8
         end
 
         def self.from_io(channel, bytesize, io, format)
