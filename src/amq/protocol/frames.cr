@@ -1589,16 +1589,25 @@ module AMQ
             super(channel, bytesize.to_u32)
           end
 
+          # The frame header, ids, reserved1, two short strings, the bits
+          # and the frame end
+          MAX_BYTESIZE = 7 + 4 + 2 + 2 * (1 + UInt8::MAX) + 1 + 1
+
+          # A publish is sent for every message, so it's built on the stack
+          # and written at once, instead of field by field
           def to_io(io, format)
-            wrap(io, format) do
-              io.write_bytes @reserved1, format
-              io.write_bytes ShortString.new(@exchange), format
-              io.write_bytes ShortString.new(@routing_key), format
-              bits = 0_u8
-              bits = bits | (1 << 0) if @mandatory
-              bits = bits | (1 << 1) if @immediate
-              io.write_byte(bits)
-            end
+            buf = uninitialized UInt8[MAX_BYTESIZE]
+            slice = buf.to_slice
+            encode_method_header(slice, format)
+            format.encode(@reserved1, slice[11, 2])
+            pos = ShortString.new(@exchange).encode(slice, 13)
+            pos = ShortString.new(@routing_key).encode(slice, pos)
+            bits = 0_u8
+            bits = bits | (1 << 0) if @mandatory
+            bits = bits | (1 << 1) if @immediate
+            slice[pos] = bits
+            slice[pos + 1] = 206_u8
+            io.write slice[0, pos + 2]
           end
 
           def self.from_io(channel, bytesize, io, format)

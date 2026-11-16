@@ -114,11 +114,13 @@ describe AMQ::Protocol::Frame::Method::Basic::Publish do
     end
   end
 
-  it "rejects names longer than a short string" do
-    frame = AMQ::Protocol::Frame::Method::Basic::Publish.new(1_u16, 0_u16, "e" * 256, "rk", false, false)
+  it "rejects names longer than a short string without writing anything" do
+    frame = AMQ::Protocol::Frame::Method::Basic::Publish.new(1_u16, 0_u16, "", "r" * 256, false, false)
+    io = IO::Memory.new
     expect_raises(ArgumentError) do
-      frame.to_io(IO::Memory.new, IO::ByteFormat::NetworkEndian)
+      frame.to_io(io, IO::ByteFormat::NetworkEndian)
     end
+    io.size.should eq 0
   end
 end
 
