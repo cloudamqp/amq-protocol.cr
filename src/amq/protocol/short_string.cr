@@ -5,9 +5,24 @@ module AMQ
       end
 
       def to_io(io, format = nil) : Nil
-        raise ArgumentError.new("Short string too long, max #{UInt8::MAX}") if @str.bytesize > UInt8::MAX
+        check_size
         io.write_byte(@str.bytesize.to_u8)
         io.write(@str.to_slice)
+      end
+
+      # :nodoc:
+      # Writes the string into *slice* at *pos* and returns the position
+      # after it
+      def encode(slice : Bytes, pos : Int32) : Int32
+        check_size
+        size = @str.bytesize
+        slice[pos] = size.to_u8
+        @str.to_slice.copy_to(slice[pos + 1, size])
+        pos + 1 + size
+      end
+
+      private def check_size : Nil
+        raise ArgumentError.new("Short string too long, max #{UInt8::MAX}") if @str.bytesize > UInt8::MAX
       end
 
       def self.from_io(io, format = nil) : String

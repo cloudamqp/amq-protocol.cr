@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Table#freeze` makes a table immutable; mutating methods raise `Table::FrozenError` instead of copy-on-writing [#44](https://github.com/cloudamqp/amq-protocol.cr/pull/44)
 - `?` getters for boolean frame fields, e.g. `Queue::Declare#durable?` and `Basic::Deliver#redelivered?` [#40](https://github.com/cloudamqp/amq-protocol.cr/pull/40)
 
+### Changed
+
+- Publish, content header and small body frames are encoded with fewer IO calls: a 16 byte publish encodes about a third faster
+- A publish with an exchange or routing key longer than 255 bytes raises before anything is written, instead of after a partial frame
+
 ### Deprecated
 
 - Non-`?` getters for boolean frame fields, e.g. `Queue::Declare#durable`; use the `?` variants instead [#40](https://github.com/cloudamqp/amq-protocol.cr/pull/40)

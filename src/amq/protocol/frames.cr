@@ -11,13 +11,19 @@ module AMQ
 
       def wrap(io, format : IO::ByteFormat, &) : Nil
         buf = uninitialized UInt8[7]
-        buf[0] = type
         slice = buf.to_slice
-        format.encode @channel, slice[1, 2]
-        format.encode @bytesize, slice[3, 4]
+        encode_header(slice, format)
         io.write slice
         yield
         io.write_byte 206_u8
+      end
+
+      # Writes the frame's type, channel and size into the first 7 bytes of
+      # *slice*
+      private def encode_header(slice : Bytes, format : IO::ByteFormat) : Nil
+        slice[0] = type
+        format.encode @channel, slice[1, 2]
+        format.encode @bytesize, slice[3, 4]
       end
 
       # Parse a frame from an IO
@@ -138,16 +144,19 @@ module AMQ
           super(channel, bytesize.to_u32)
         end
 
+        # The frame header, the fixed fields and the property flags are
+        # written at once, as a header is sent for every message
         def to_io(io : IO, format : IO::ByteFormat)
-          wrap(io, format) do
-            buf = uninitialized UInt8[12]
-            slice = buf.to_slice
-            format.encode @class_id, slice[0, 2]
-            format.encode @weight, slice[2, 2]
-            format.encode @body_size, slice[4, 8]
-            io.write slice
-            io.write_bytes @properties, format
-          end
+          buf = uninitialized UInt8[21]
+          slice = buf.to_slice
+          encode_header(slice, format)
+          format.encode @class_id, slice[7, 2]
+          format.encode @weight, slice[9, 2]
+          format.encode @body_size, slice[11, 8]
+          format.encode @properties.flags, slice[19, 2]
+          io.write slice
+          @properties.fields_to_io(io, format)
+          io.write_byte 206_u8
         end
 
         def self.from_io(channel, bytesize, io, format)
@@ -195,13 +204,27 @@ module AMQ
 
         getter body_size, body
 
+        # Frames with bodies up to 256 bytes are written in one call, as
+        # copying the body costs less than two more calls
+        INLINE_FRAME_MAX = 264
+        INLINE_BODY_MAX  = INLINE_FRAME_MAX - 8
+
         def initialize(channel : UInt16, @body_size : UInt32, @body : Bytes)
           super(channel, @body_size)
         end
 
         def to_io(io, format)
-          wrap(io, format) do
-            io.write @body
+          if @body.size <= INLINE_BODY_MAX
+            buf = uninitialized UInt8[INLINE_FRAME_MAX]
+            slice = buf.to_slice[0, @body.size + 8]
+            encode_header(slice, format)
+            @body.copy_to(slice[7, @body.size])
+            slice[-1] = 206_u8
+            io.write slice
+          else
+            wrap(io, format) do
+              io.write @body
+            end
           end
         end
       end
@@ -246,15 +269,22 @@ module AMQ
         abstract def class_id : UInt16
         abstract def method_id : UInt16
 
+        # Writes the frame header and the class and method ids at once
         def wrap(io, format, &)
-          super(io, format) do
-            buf = uninitialized UInt8[4]
-            slice = buf.to_slice
-            format.encode(class_id, slice[0, 2])
-            format.encode(method_id, slice[2, 2])
-            io.write slice
-            yield
-          end
+          buf = uninitialized UInt8[11]
+          slice = buf.to_slice
+          encode_method_header(slice, format)
+          io.write slice
+          yield
+          io.write_byte 206_u8
+        end
+
+        # Writes the frame header and the class and method ids into the first
+        # 11 bytes of *slice*
+        private def encode_method_header(slice : Bytes, format : IO::ByteFormat) : Nil
+          encode_header(slice, format)
+          format.encode(class_id, slice[7, 2])
+          format.encode(method_id, slice[9, 2])
         end
 
         # ameba:disable Metrics/CyclomaticComplexity
@@ -1576,16 +1606,25 @@ module AMQ
             super(channel, bytesize.to_u32)
           end
 
+          # The frame header, ids, reserved1, two short strings, the bits
+          # and the frame end
+          MAX_BYTESIZE = 7 + 4 + 2 + 2 * (1 + UInt8::MAX) + 1 + 1
+
+          # A publish is sent for every message, so it's built on the stack
+          # and written at once, instead of field by field
           def to_io(io, format)
-            wrap(io, format) do
-              io.write_bytes @reserved1, format
-              io.write_bytes ShortString.new(@exchange), format
-              io.write_bytes ShortString.new(@routing_key), format
-              bits = 0_u8
-              bits = bits | (1 << 0) if @mandatory
-              bits = bits | (1 << 1) if @immediate
-              io.write_byte(bits)
-            end
+            buf = uninitialized UInt8[MAX_BYTESIZE]
+            slice = buf.to_slice
+            encode_method_header(slice, format)
+            format.encode(@reserved1, slice[11, 2])
+            pos = ShortString.new(@exchange).encode(slice, 13)
+            pos = ShortString.new(@routing_key).encode(slice, pos)
+            bits = 0_u8
+            bits = bits | (1 << 0) if @mandatory
+            bits = bits | (1 << 1) if @immediate
+            slice[pos] = bits
+            slice[pos + 1] = 206_u8
+            io.write slice[0, pos + 2]
           end
 
           def self.from_io(channel, bytesize, io, format)

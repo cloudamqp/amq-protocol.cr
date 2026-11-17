@@ -197,6 +197,12 @@ module AMQ
       end
 
       def to_io(io, format)
+        io.write_bytes(flags, format)
+        fields_to_io(io, format)
+      end
+
+      # :nodoc:
+      def flags : UInt16
         flags = 0_u16
         flags = flags | FLAG_CONTENT_TYPE if @content_type
         flags = flags | FLAG_CONTENT_ENCODING if @content_encoding
@@ -212,8 +218,12 @@ module AMQ
         flags = flags | FLAG_USER_ID if @user_id
         flags = flags | FLAG_APP_ID if @app_id
         flags = flags | FLAG_RESERVED1 if @reserved1
-        io.write_bytes(flags, format)
+        flags
+      end
 
+      # :nodoc:
+      # Writes the properties that are set, without the flags saying which
+      def fields_to_io(io, format) : Nil
         if s = @content_type
           io.write_bytes ShortString.new(s), format
         end
